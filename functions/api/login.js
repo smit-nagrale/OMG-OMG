@@ -1,5 +1,19 @@
 export async function onRequestPost(context) {
   const { request, env } = context;
+  const ip = request.headers.get("CF-Connecting-IP") || "unknown";
+  const key = `attempts:${ip}`;
+
+  // ---- Check if this IP is currently locked out ----
+  const record = await env.ATTEMPTS.get(key, { type: "json" });
+  const now = Date.now();
+
+  if (record && record.count >= 5 && now - record.lastAttempt < 10 * 60 * 1000) {
+    const waitMins = Math.ceil((10 * 60 * 1000 - (now - record.lastAttempt)) / 60000);
+    return new Response(
+      JSON.stringify({ ok: false, reason: "locked", message: `Too many attempts. Try again in ${waitMins} min.` }),
+      { status: 429 }
+    );
+  }
 
   let password = "";
   let turnstileToken = "";
@@ -18,7 +32,7 @@ export async function onRequestPost(context) {
     body: JSON.stringify({
       secret: env.TURNSTILE_SECRET,
       response: turnstileToken,
-      remoteip: request.headers.get("CF-Connecting-IP"),
+      remoteip: ip,
     }),
   });
   const verifyData = await verifyRes.json();
@@ -28,8 +42,16 @@ export async function onRequestPost(context) {
   }
 
   if (password !== env.SITE_PASSWORD) {
+    // wrong password -> record the failed attempt
+    const newCount = record ? record.count + 1 : 1;
+    await env.ATTEMPTS.put(key, JSON.stringify({ count: newCount, lastAttempt: now }), {
+      expirationTtl: 600, // auto-clears after 10 minutes
+    });
     return new Response(JSON.stringify({ ok: false, reason: "password" }), { status: 401 });
   }
+
+  // correct password -> clear any attempt record for this IP
+  await env.ATTEMPTS.delete(key);
 
   const token = await hashPassword(env.SITE_PASSWORD);
 
