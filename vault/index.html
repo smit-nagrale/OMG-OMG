@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vault</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#081310;
+    --ink-2:#0c1a15;
+    --line:#25392c;
+    --text:#EDEAE0;
+    --dim:#7E9284;
+    --gold:#C79A56;
+    --gold-dim:#8C6530;
+  }
+  *{box-sizing:border-box;}
+  html,body{min-height:100%;margin:0;}
+  body{
+    background:
+      radial-gradient(ellipse at 50% 0%, #0d2018 0%, transparent 60%),
+      linear-gradient(180deg, var(--ink) 0%, var(--ink-2) 100%);
+    color:var(--text);
+    font-family:'Fraunces',serif;
+    padding:60px 24px 100px;
+  }
+  .home{ width:min(760px,92vw); margin:0 auto; text-align:left; }
+  .home-eyebrow{
+    font-family:'Inter',sans-serif; font-weight:300; font-size:11px;
+    letter-spacing:.3em; color:var(--dim); text-transform:uppercase; margin-bottom:12px;
+  }
+  .home h1{ font-size:clamp(30px,5vw,46px); font-weight:300; margin:0 0 40px 0; }
+  .home h1 em{ color:var(--gold); font-style:italic; font-weight:400; }
+  .grid{
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+    gap:1px; background:var(--line);
+  }
+  .tile{
+    background:var(--ink); padding:30px 24px; min-height:130px;
+    display:flex; flex-direction:column; justify-content:space-between;
+    transition:background .3s ease;
+  }
+  .tile:hover{ background:var(--ink-2); }
+  .tile-label{
+    font-family:'Inter',sans-serif; font-weight:300; font-size:10px;
+    letter-spacing:.2em; text-transform:uppercase; color:var(--gold-dim);
+  }
+  .tile-name{ font-size:21px; font-weight:300; margin-top:16px; }
+  .logout{
+    display:inline-block; margin-top:50px; font-family:'Inter',sans-serif; font-weight:300;
+    font-size:11px; letter-spacing:.15em; color:var(--dim); text-decoration:none;
+    text-transform:uppercase; border-bottom:1px solid var(--dim);
+  }
+  .logout:hover{ color:var(--text); border-color:var(--text); }
+</style>
+</head>
+<body>
+  <div class="home">
+    <div class="home-eyebrow">Welcome back</div>
+    <h1>This is <em>yours</em>.</h1>
+    <div class="grid">
+      <div class="tile"><span class="tile-label">01</span><span class="tile-name">Achievements</span></div>
+      <div class="tile"><span class="tile-label">02</span><span class="tile-name">Dreams</span></div>
+      <div class="tile"><span class="tile-label">03</span><span class="tile-name">My Rules</span></div>
+      <div class="tile"><span class="tile-label">04</span><span class="tile-name">Commitment Letters</span></div>
+      <div class="tile"><span class="tile-label">05</span><span class="tile-name">Dream Checklist</span></div>
+    </div>
+    <a class="logout" href="/">&larr; leave the vault</a>
+  </div>
+</body>
+</html>
