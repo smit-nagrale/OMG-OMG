@@ -323,7 +323,7 @@
       const data = await res.json();
 
       if (data.ok) {
-        window.location.href = '/vault/';
+        window.location.href = '/utopia/';
       } else if (data.reason === 'locked') {
         err.textContent = data.message || "too many attempts, try later.";
         btn.textContent = 'Yeh, its me';
