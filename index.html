@@ -324,6 +324,9 @@
 
       if (data.ok) {
         window.location.href = '/vault/';
+      } else if (data.reason === 'locked') {
+        err.textContent = data.message || "too many attempts, try later.";
+        btn.textContent = 'Yeh, its me';
       } else {
         err.textContent = "wrong password.";
         btn.textContent = 'Yeh, its me';
