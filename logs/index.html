@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Access Log</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;1,9..144,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#081310; --ink-2:#0c1a15; --line:#25392c;
+    --text:#EDEAE0; --dim:#7E9284; --gold:#C79A56; --gold-dim:#8C6530;
+    --green:#4A9B6E; --red:#B85C5C;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background:linear-gradient(180deg, var(--ink) 0%, var(--ink-2) 100%);
+    color:var(--text); font-family:'Inter',sans-serif; min-height:100vh;
+    padding:34px clamp(20px,5vw,60px) 100px;
+  }
+  a.key{ position:fixed; top:24px; left:24px; color:var(--dim); text-decoration:none; font-size:11px; letter-spacing:.1em; text-transform:uppercase; border-bottom:1px solid var(--dim);}
+  h1{ font-family:'Fraunces',serif; font-weight:500; font-size:clamp(28px,4vw,40px); margin:50px 0 30px; }
+
+  table{ width:100%; max-width:900px; border-collapse:collapse; font-size:13px; }
+  th{ text-align:left; color:var(--dim); font-weight:400; letter-spacing:.05em; text-transform:uppercase; font-size:10px; padding:10px 12px; border-bottom:1px solid var(--line); }
+  td{ padding:12px; border-bottom:1px solid var(--line); }
+  .result{ font-size:11px; padding:3px 8px; border-radius:4px; display:inline-block; }
+  .result.success{ background:rgba(74,155,110,0.15); color:var(--green); }
+  .result.wrong_password, .result.failed_captcha{ background:rgba(184,92,92,0.12); color:var(--red); }
+  .result.locked_out{ background:rgba(199,154,86,0.12); color:var(--gold); }
+  .empty{ color:var(--dim); font-size:14px; margin-top:20px; }
+</style>
+</head>
+<body>
+<a class="key" href="/utopia/">&larr; hub</a>
+<h1>Access Log</h1>
+
+<div id="content">Loading...</div>
+
+<script>
+  fetch('/logs/api/list')
+    .then(r => r.json())
+    .then(data => {
+      const content = document.getElementById('content');
+      if(!data.entries || data.entries.length === 0){
+        content.innerHTML = '<div class="empty">No login attempts recorded yet.</div>';
+        return;
+      }
+      let rows = data.entries.map(e => `
+        <tr>
+          <td>${new Date(e.timestamp).toLocaleString()}</td>
+          <td>${e.ip}</td>
+          <td>${e.city}, ${e.region}, ${e.country}</td>
+          <td><span class="result ${e.result}">${e.result.replace('_',' ')}</span></td>
+        </tr>
+      `).join('');
+      content.innerHTML = `
+        <table>
+          <tr><th>Time</th><th>IP</th><th>Location</th><th>Result</th></tr>
+          ${rows}
+        </table>
+      `;
+    })
+    .catch(()=>{
+      document.getElementById('content').innerHTML = '<div class="empty">Could not load logs.</div>';
+    });
+</script>
+</body>
+</html>
