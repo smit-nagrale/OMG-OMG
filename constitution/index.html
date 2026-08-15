@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Constitution</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;1,9..144,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#081310; --ink-2:#0c1a15; --line:#25392c;
+    --text:#EDEAE0; --dim:#7E9284; --gold:#C79A56; --gold-dim:#8C6530;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background:linear-gradient(180deg, var(--ink) 0%, var(--ink-2) 100%);
+    color:var(--text); font-family:'Inter',sans-serif; min-height:100vh;
+    padding:34px clamp(20px,5vw,60px) 100px;
+  }
+  a.key{ position:fixed; top:24px; left:24px; color:var(--dim); text-decoration:none; font-size:11px; letter-spacing:.1em; text-transform:uppercase; border-bottom:1px solid var(--dim);}
+  h1{ font-family:'Fraunces',serif; font-weight:500; font-size:clamp(28px,4vw,40px); margin:50px 0 30px; }
+
+  /* ---- compact list (default view) ---- */
+  .list{ display:flex; flex-direction:column; max-width:680px; border-top:1px solid var(--line); }
+  .row{
+    display:flex; align-items:center; gap:16px; padding:18px 4px;
+    border-bottom:1px solid var(--line); cursor:pointer; transition:background .2s ease;
+  }
+  .row:hover{ background:rgba(199,154,86,0.04); }
+  .row-title{ font-family:'Fraunces',serif; font-size:18px; font-weight:500; flex:1; }
+  .row-arrow{ color:var(--dim); font-size:13px; }
+
+  /* ---- full article view (opened) ---- */
+  .article{ display:none; max-width:680px; }
+  .article.open{ display:block; animation:fadeUp .4s ease; }
+  @keyframes fadeUp{ from{opacity:0; transform:translateY(8px)} to{opacity:1; transform:translateY(0)} }
+  .back-to-list{
+    display:inline-block; margin-bottom:26px; font-size:11px; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--dim); cursor:pointer; border-bottom:1px solid var(--dim);
+  }
+  .back-to-list:hover{ color:var(--text); border-color:var(--text); }
+  .article-title{ font-family:'Fraunces',serif; font-weight:500; font-size:clamp(26px,4vw,36px); margin-bottom:24px; }
+  .article-body p{ font-size:15px; color:var(--dim); line-height:1.8; }
+</style>
+</head>
+<body>
+<a class="key" href="/utopia/">&larr; hub</a>
+<h1>Constitution</h1>
+
+<div class="list" id="list"></div>
+<div class="article" id="article"></div>
+
+<script>
+  // READ ONLY — nothing on this page edits content. Editing lives only in Settings.
+  // Heading text is typed exactly as you want it shown — add a roman numeral
+  // yourself when you want one (e.g. "I. Foundation"), or skip it (e.g. "Preface").
+  const sections = [
+    { title: "Preface", text: "This is not a list of rules imposed from outside. It's a record of what's been chosen, deliberately, and why. It exists to be returned to — not memorized once and forgotten." },
+    { title: "I. Foundation", text: "Build what matters. Start here. Every action compounds. Clarity precedes momentum. The work reveals the path." },
+    { title: "II. Discipline", text: "Show up when it's hard. Consistency over intensity. Small steps, taken daily, outpace grand gestures. Trust the process, even when invisible." },
+    { title: "III. Growth", text: "Comfort is the enemy of progress. Seek discomfort deliberately. Each challenge accepted is a choice to evolve. Stagnation is a decision." },
+    { title: "IV. Integrity", text: "Your word is your worth. Say less, do more. Let actions be louder than promises. Reputation is built in quiet moments, not proclamations." },
+  ];
+
+  const list = document.getElementById('list');
+  const articleEl = document.getElementById('article');
+
+  function renderList(){
+    list.style.display = 'flex';
+    articleEl.classList.remove('open');
+    list.innerHTML = '';
+    sections.forEach((s,i)=>{
+      const el = document.createElement('div');
+      el.className = 'row';
+      el.onclick = ()=> openArticle(i);
+      el.innerHTML = `
+        <div class="row-title">${s.title}</div>
+        <div class="row-arrow">&rarr;</div>
+      `;
+      list.appendChild(el);
+    });
+  }
+
+  function openArticle(i){
+    const s = sections[i];
+    list.style.display = 'none';
+    articleEl.classList.add('open');
+    articleEl.innerHTML = `
+      <div class="back-to-list" onclick="renderList()">&larr; all sections</div>
+      <div class="article-title">${s.title}</div>
+      <div class="article-body"><p>${s.text}</p></div>
+    `;
+  }
+
+  renderList();
+</script>
+</body>
+</html>
