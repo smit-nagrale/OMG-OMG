@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dream Checklist</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;1,9..144,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#081310; --ink-2:#0c1a15; --line:#25392c;
+    --text:#EDEAE0; --dim:#7E9284; --gold:#C79A56; --gold-dim:#8C6530;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background:linear-gradient(180deg, var(--ink) 0%, var(--ink-2) 100%);
+    color:var(--text); font-family:'Inter',sans-serif; min-height:100vh;
+    padding:34px clamp(20px,5vw,60px) 80px;
+  }
+  a.key{ position:fixed; top:24px; left:24px; color:var(--dim); text-decoration:none; font-size:11px; letter-spacing:.1em; text-transform:uppercase; border-bottom:1px solid var(--dim);}
+  h1{ font-family:'Fraunces',serif; font-weight:500; font-size:clamp(28px,4vw,40px); margin:50px 0 30px; }
+
+  .list{ display:flex; flex-direction:column; gap:2px; max-width:640px; }
+  .item{
+    background:var(--ink-2); border:1px solid var(--line); border-radius:8px;
+    padding:16px 18px; cursor:grab; user-select:none;
+    transition:transform .35s cubic-bezier(.2,.8,.2,1), opacity .35s ease, background .2s ease;
+    display:flex; flex-direction:column; gap:0;
+  }
+  .item.dragging{ opacity:.4; cursor:grabbing; }
+  .item-row{ display:flex; align-items:center; gap:14px; }
+  .check{
+    width:20px; height:20px; min-width:20px; border:1px solid var(--dim); border-radius:5px;
+    display:flex; align-items:center; justify-content:center; cursor:pointer; transition:all .2s ease;
+  }
+  .check.checked{ background:var(--gold); border-color:var(--gold); }
+  .check svg{ width:12px; height:12px; opacity:0; }
+  .check.checked svg{ opacity:1; }
+  .check svg path{ stroke:var(--ink); stroke-width:3; fill:none; }
+  .item-text{ flex:1; font-size:15px; cursor:pointer; transition:color .2s ease; }
+  .item.checked .item-text{ color:var(--dim); text-decoration:line-through; }
+  .expand-icon{ color:var(--dim); font-size:12px; transition:transform .3s ease; }
+  .item.open .expand-icon{ transform:rotate(180deg); }
+
+  .item-detail{
+    max-height:0; overflow:hidden; opacity:0;
+    transition:max-height .4s ease, opacity .3s ease, margin-top .4s ease;
+    font-size:13px; color:var(--dim); line-height:1.6;
+  }
+  .item.open .item-detail{ max-height:200px; opacity:1; margin-top:12px; }
+
+  .add-row{
+    margin-top:20px; display:flex; gap:10px; max-width:640px;
+  }
+  .add-row input{
+    flex:1; background:var(--ink-2); border:1px solid var(--line); border-radius:8px;
+    padding:12px 14px; color:var(--text); font-family:'Inter',sans-serif; font-size:14px; outline:none;
+  }
+  .add-row input:focus{ border-color:var(--gold-dim); }
+  .add-row button{
+    background:none; border:1px solid var(--gold-dim); color:var(--gold-dim); border-radius:8px;
+    padding:0 20px; cursor:pointer; font-family:'Inter',sans-serif; font-size:13px; letter-spacing:.05em;
+    transition:all .2s ease;
+  }
+  .add-row button:hover{ color:var(--gold); border-color:var(--gold); }
+</style>
+</head>
+<body>
+<a class="key" href="/utopia/">&larr; hub</a>
+<h1>Dream Checklist</h1>
+
+<div class="list" id="list"></div>
+
+<div class="add-row">
+  <input type="text" id="newItem" placeholder="Add a new dream...">
+  <button onclick="addItem()">Add</button>
+</div>
+
+<script>
+  let items = [
+    {text:"Build a business that creates freedom", detail:"Not just income — actual freedom over time and decisions.", checked:false},
+    {text:"Master a craft worth sharing", detail:"Something good enough people ask you to teach it.", checked:false},
+    {text:"Travel somewhere that changes perspective", detail:"Not a vacation — a place that shifts how you see things.", checked:false},
+    {text:"Create something people remember", detail:"Work that outlasts the moment it was made in.", checked:false},
+    {text:"Develop unshakeable discipline", detail:"Show up on the days motivation doesn't.", checked:false},
+    {text:"Build deep, lasting relationships", detail:"Few people, fully known, for the long run.", checked:false},
+  ];
+
+  const list = document.getElementById('list');
+  let dragIndex = null;
+
+  function render(){
+    list.innerHTML = '';
+    items.forEach((item, i)=>{
+      const el = document.createElement('div');
+      el.className = 'item' + (item.checked?' checked':'');
+      el.draggable = true;
+      el.dataset.index = i;
+
+      el.innerHTML = `
+        <div class="item-row">
+          <div class="check ${item.checked?'checked':''}" onclick="toggleCheck(${i})">
+            <svg viewBox="0 0 24 24"><path d="M4 12l6 6L20 6"/></svg>
+          </div>
+          <div class="item-text" onclick="toggleOpen(${i})">${item.text}</div>
+          <div class="expand-icon" onclick="toggleOpen(${i})">&#9662;</div>
+        </div>
+        <div class="item-detail">${item.detail}</div>
+      `;
+
+      el.addEventListener('dragstart', ()=>{ dragIndex = i; el.classList.add('dragging'); });
+      el.addEventListener('dragend', ()=>{ el.classList.remove('dragging'); });
+      el.addEventListener('dragover', (e)=> e.preventDefault());
+      el.addEventListener('drop', ()=>{
+        if(dragIndex === null || dragIndex === i) return;
+        const moved = items.splice(dragIndex,1)[0];
+        items.splice(i,0,moved);
+        render();
+      });
+
+      if(item._open) el.classList.add('open');
+      list.appendChild(el);
+    });
+  }
+
+  function toggleCheck(i){
+    items[i].checked = !items[i].checked;
+    if(items[i].checked){
+      // slide it down: move to bottom after a short delay for animation feel
+      setTimeout(()=>{
+        const moved = items.splice(i,1)[0];
+        items.push(moved);
+        render();
+      }, 350);
+    }
+    render();
+  }
+
+  function toggleOpen(i){
+    items[i]._open = !items[i]._open;
+    render();
+  }
+
+  function addItem(){
+    const input = document.getElementById('newItem');
+    if(!input.value.trim()) return;
+    items.unshift({text:input.value.trim(), detail:"", checked:false});
+    input.value = '';
+    render();
+  }
+
+  render();
+</script>
+</body>
+</html>
