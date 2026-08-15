@@ -22,13 +22,32 @@ export async function onRequestPost(context) {
     } catch {}
   }
 
+  async function notifyIfNotOwner(result){
+    try {
+      const cookieHeader = request.headers.get("Cookie") || "";
+      const trustedExpected = await hashPassword(env.SITE_PASSWORD + "::trusted");
+      const isTrustedDevice = cookieHeader.includes(`trusted_device=${trustedExpected}`);
+      if (isTrustedDevice) return; // this device has logged in correctly before — skip notification
+
+      const knownIps = (env.KNOWN_IPS || "").split(",").map(s => s.trim()).filter(Boolean);
+      if (knownIps.includes(ip)) return; // fallback: known IP — skip notification
+      if (!env.NTFY_TOPIC) return; // notifications not configured yet
+
+      await fetch(`https://ntfy.sh/${env.NTFY_TOPIC}`, {
+        method: "POST",
+        headers: { "Title": "Utopia access attempt" },
+        body: `${result.toUpperCase()} — ${ip} — ${cf.city || "?"}, ${cf.country || "?"}`,
+      });
+    } catch {}
+  }
+
   // ---- Check if this IP is currently locked out ----
   const record = await env.ATTEMPTS.get(key, { type: "json" });
   const now = Date.now();
 
   if (record && record.count >= 5 && now - record.lastAttempt < 10 * 60 * 1000) {
     const waitMins = Math.ceil((10 * 60 * 1000 - (now - record.lastAttempt)) / 60000);
-    await writeLog("locked_out");
+    await writeLog("locked_out"); await notifyIfNotOwner("locked_out");
     return new Response(
       JSON.stringify({ ok: false, reason: "locked", message: `Too many attempts. Try again in ${waitMins} min.` }),
       { status: 429 }
@@ -58,7 +77,7 @@ export async function onRequestPost(context) {
   const verifyData = await verifyRes.json();
 
   if (!verifyData.success) {
-    await writeLog("failed_captcha");
+    await writeLog("failed_captcha"); await notifyIfNotOwner("failed_captcha");
     return new Response(JSON.stringify({ ok: false, reason: "captcha" }), { status: 401 });
   }
 
@@ -68,20 +87,25 @@ export async function onRequestPost(context) {
     await env.ATTEMPTS.put(key, JSON.stringify({ count: newCount, lastAttempt: now }), {
       expirationTtl: 600, // auto-clears after 10 minutes
     });
-    await writeLog("wrong_password");
+    await writeLog("wrong_password"); await notifyIfNotOwner("wrong_password");
     return new Response(JSON.stringify({ ok: false, reason: "password" }), { status: 401 });
   }
 
   // correct password -> clear any attempt record for this IP
   await env.ATTEMPTS.delete(key);
-  await writeLog("success");
+  await writeLog("success"); await notifyIfNotOwner("success");
 
   const token = await hashPassword(env.SITE_PASSWORD);
+  const trustedToken = await hashPassword(env.SITE_PASSWORD + "::trusted");
 
   const headers = new Headers();
   headers.append(
     "Set-Cookie",
     `session=${token}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=86400`
+  );
+  headers.append(
+    "Set-Cookie",
+    `trusted_device=${trustedToken}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=31536000`
   );
   headers.append("Content-Type", "application/json");
 
