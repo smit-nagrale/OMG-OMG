@@ -53,18 +53,26 @@
 
 <div id="content">Loading...</div>
 
-<h1 style="font-size:22px; margin-top:60px;">Known Devices</h1>
-<p style="color:var(--dim); font-size:13px; margin-bottom:16px;">IPs in this list never trigger a notification. (Your device is also auto-trusted via cookie after first login.)</p>
-<div id="knownIpsList" style="max-width:400px; margin-bottom:14px;"></div>
-<div style="display:flex; gap:10px; max-width:400px;">
-  <input type="text" id="newIp" placeholder="Add an IP address..." style="flex:1; background:var(--ink-2); border:1px solid var(--line); border-radius:8px; padding:10px 12px; color:var(--text); font-family:'Inter',sans-serif; font-size:13px; outline:none;">
-  <button onclick="addKnownIp()" style="background:none; border:1px solid var(--gold-dim); color:var(--gold-dim); border-radius:8px; padding:0 16px; cursor:pointer; font-family:'Inter',sans-serif; font-size:12px;">Add</button>
+<h1 style="font-size:22px; margin-top:60px;">Device Trust</h1>
+<p style="color:var(--dim); font-size:13px; margin-bottom:20px;">Drag an IP into Trusted to stop notifications for it. Drag back to Untrusted anytime.</p>
+
+<div style="display:flex; gap:24px; flex-wrap:wrap; max-width:900px;">
+  <div style="flex:1; min-width:260px;">
+    <div style="font-family:'Fraunces',serif; font-size:15px; color:var(--dim); margin-bottom:10px;">Untrusted</div>
+    <div id="untrustedCol" ondragover="event.preventDefault()" ondrop="handleDrop(event,'untrusted')"
+      style="min-height:120px; border:1px dashed var(--line); border-radius:8px; padding:10px;"></div>
+  </div>
+  <div style="flex:1; min-width:260px;">
+    <div style="font-family:'Fraunces',serif; font-size:15px; color:var(--gold); margin-bottom:10px;">Trusted</div>
+    <div id="trustedCol" ondragover="event.preventDefault()" ondrop="handleDrop(event,'trusted')"
+      style="min-height:120px; border:1px dashed var(--gold-dim); border-radius:8px; padding:10px;"></div>
+  </div>
 </div>
 
 <script>
   let allEntries = [];
   let sortMode = 'time';
-  let countryFilter = 'none';
+  let countryFilter = 'none'; // 'none' | 'inside' | 'outside'
 
   function setSort(mode){
     sortMode = mode;
@@ -73,7 +81,7 @@
     render();
   }
   function setCountryFilter(mode){
-    countryFilter = (countryFilter === mode) ? 'none' : mode;
+    countryFilter = (countryFilter === mode) ? 'none' : mode; // click again to clear
     document.getElementById('btnInside').classList.toggle('active', countryFilter==='inside');
     document.getElementById('btnOutside').classList.toggle('active', countryFilter==='outside');
     render();
@@ -98,6 +106,7 @@
       entries.sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
     }
 
+    // determine "new location" — first time this city/country combo appears, chronologically
     const chronological = [...allEntries].sort((a,b)=> new Date(a.timestamp) - new Date(b.timestamp));
     const firstSeen = new Set();
     const isFirstOccurrence = {};
@@ -138,47 +147,66 @@
     .then(r => r.json())
     .then(data => {
       allEntries = data.entries || [];
+      seenIps = [...new Set(allEntries.map(e => e.ip))];
       render();
+      renderTrustColumns();
     })
     .catch(()=>{
       document.getElementById('content').innerHTML = '<div class="empty">Could not load logs.</div>';
     });
 
-  function renderKnownIps(ips){
-    const el = document.getElementById('knownIpsList');
-    if(!ips || ips.length === 0){
-      el.innerHTML = '<div style="color:var(--dim); font-size:13px;">None added yet.</div>';
-      return;
+  loadTrustData();
+
+  let trustedIps = [];
+  let seenIps = [];
+
+  function renderTrustColumns(){
+    const untrustedCol = document.getElementById('untrustedCol');
+    const trustedCol = document.getElementById('trustedCol');
+
+    const untrusted = seenIps.filter(ip => !trustedIps.includes(ip));
+    const trusted = trustedIps.filter(ip => seenIps.includes(ip) || true); // keep manually added even if not in recent logs
+
+    function chip(ip){
+      return `<div draggable="true" ondragstart="event.dataTransfer.setData('text/plain','${ip}')"
+        style="background:var(--ink-2); border:1px solid var(--line); border-radius:6px; padding:8px 12px; margin-bottom:8px; font-size:13px; cursor:grab;">${ip}</div>`;
     }
-    el.innerHTML = ips.map(ip => `
-      <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--line); font-size:13px;">
-        <span>${ip}</span>
-        <span style="color:var(--red); cursor:pointer; font-size:11px;" onclick="removeKnownIp('${ip}')">remove</span>
-      </div>
-    `).join('');
+
+    untrustedCol.innerHTML = untrusted.length
+      ? untrusted.map(chip).join('')
+      : '<div style="color:var(--dim); font-size:12px;">No untrusted IPs seen yet.</div>';
+
+    trustedCol.innerHTML = trusted.length
+      ? trusted.map(chip).join('')
+      : '<div style="color:var(--dim); font-size:12px;">Drag an IP here to trust it.</div>';
   }
 
-  function loadKnownIps(){
-    fetch('/logs/api/known-ips').then(r=>r.json()).then(d => renderKnownIps(d.ips));
+  function handleDrop(event, target){
+    const ip = event.dataTransfer.getData('text/plain');
+    if(!ip) return;
+
+    if(target === 'trusted' && !trustedIps.includes(ip)){
+      trustedIps.push(ip);
+      fetch('/logs/api/known-ips', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ ip })
+      });
+    } else if(target === 'untrusted'){
+      trustedIps = trustedIps.filter(x => x !== ip);
+      fetch('/logs/api/known-ips', {
+        method:'DELETE', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ ip })
+      });
+    }
+    renderTrustColumns();
   }
 
-  function addKnownIp(){
-    const input = document.getElementById('newIp');
-    if(!input.value.trim()) return;
-    fetch('/logs/api/known-ips', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ ip: input.value.trim() })
-    }).then(r=>r.json()).then(d => { renderKnownIps(d.ips); input.value=''; });
+  function loadTrustData(){
+    fetch('/logs/api/known-ips').then(r=>r.json()).then(d => {
+      trustedIps = d.ips || [];
+      renderTrustColumns();
+    });
   }
-
-  function removeKnownIp(ip){
-    fetch('/logs/api/known-ips', {
-      method:'DELETE', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ ip })
-    }).then(r=>r.json()).then(d => renderKnownIps(d.ips));
-  }
-
-  loadKnownIps();
 </script>
 </body>
 </html>
