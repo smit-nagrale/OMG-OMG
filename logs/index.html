@@ -53,10 +53,18 @@
 
 <div id="content">Loading...</div>
 
+<h1 style="font-size:22px; margin-top:60px;">Known Devices</h1>
+<p style="color:var(--dim); font-size:13px; margin-bottom:16px;">IPs in this list never trigger a notification. (Your device is also auto-trusted via cookie after first login.)</p>
+<div id="knownIpsList" style="max-width:400px; margin-bottom:14px;"></div>
+<div style="display:flex; gap:10px; max-width:400px;">
+  <input type="text" id="newIp" placeholder="Add an IP address..." style="flex:1; background:var(--ink-2); border:1px solid var(--line); border-radius:8px; padding:10px 12px; color:var(--text); font-family:'Inter',sans-serif; font-size:13px; outline:none;">
+  <button onclick="addKnownIp()" style="background:none; border:1px solid var(--gold-dim); color:var(--gold-dim); border-radius:8px; padding:0 16px; cursor:pointer; font-family:'Inter',sans-serif; font-size:12px;">Add</button>
+</div>
+
 <script>
   let allEntries = [];
   let sortMode = 'time';
-  let countryFilter = 'none'; // 'none' | 'inside' | 'outside'
+  let countryFilter = 'none';
 
   function setSort(mode){
     sortMode = mode;
@@ -65,7 +73,7 @@
     render();
   }
   function setCountryFilter(mode){
-    countryFilter = (countryFilter === mode) ? 'none' : mode; // click again to clear
+    countryFilter = (countryFilter === mode) ? 'none' : mode;
     document.getElementById('btnInside').classList.toggle('active', countryFilter==='inside');
     document.getElementById('btnOutside').classList.toggle('active', countryFilter==='outside');
     render();
@@ -90,7 +98,6 @@
       entries.sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
     }
 
-    // determine "new location" — first time this city/country combo appears, chronologically
     const chronological = [...allEntries].sort((a,b)=> new Date(a.timestamp) - new Date(b.timestamp));
     const firstSeen = new Set();
     const isFirstOccurrence = {};
@@ -136,6 +143,42 @@
     .catch(()=>{
       document.getElementById('content').innerHTML = '<div class="empty">Could not load logs.</div>';
     });
+
+  function renderKnownIps(ips){
+    const el = document.getElementById('knownIpsList');
+    if(!ips || ips.length === 0){
+      el.innerHTML = '<div style="color:var(--dim); font-size:13px;">None added yet.</div>';
+      return;
+    }
+    el.innerHTML = ips.map(ip => `
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--line); font-size:13px;">
+        <span>${ip}</span>
+        <span style="color:var(--red); cursor:pointer; font-size:11px;" onclick="removeKnownIp('${ip}')">remove</span>
+      </div>
+    `).join('');
+  }
+
+  function loadKnownIps(){
+    fetch('/logs/api/known-ips').then(r=>r.json()).then(d => renderKnownIps(d.ips));
+  }
+
+  function addKnownIp(){
+    const input = document.getElementById('newIp');
+    if(!input.value.trim()) return;
+    fetch('/logs/api/known-ips', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ ip: input.value.trim() })
+    }).then(r=>r.json()).then(d => { renderKnownIps(d.ips); input.value=''; });
+  }
+
+  function removeKnownIp(ip){
+    fetch('/logs/api/known-ips', {
+      method:'DELETE', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ ip })
+    }).then(r=>r.json()).then(d => renderKnownIps(d.ips));
+  }
+
+  loadKnownIps();
 </script>
 </body>
 </html>
