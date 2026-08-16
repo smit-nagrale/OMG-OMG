@@ -46,7 +46,10 @@ export async function onRequestPost(context) {
 
       const ntfyRes = await fetch(`https://ntfy.sh/${env.NTFY_TOPIC}`, {
         method: "POST",
-        headers: { "Title": "Utopia access attempt" },
+        headers: {
+          "Title": "Utopia access attempt",
+          "Authorization": `Bearer ${env.NTFY_TOKEN}`,
+        },
         body: `${result.toUpperCase()} — ${ip} — ${cf.city || "?"}, ${cf.country || "?"}`,
       });
       await env.LOGS.put(`debug:${Date.now()}`, `sent, ntfy status: ${ntfyRes.status}`, { expirationTtl: 3600 });
