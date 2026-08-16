@@ -24,19 +24,11 @@ export async function onRequestPost(context) {
 
   async function notifyIfNotOwner(result){
     try {
-      const cookieHeader = request.headers.get("Cookie") || "";
-      const trustedExpected = await hashPassword(env.SITE_PASSWORD + "::trusted");
-      const isTrustedDevice = cookieHeader.includes(`trusted_device=${trustedExpected}`);
-      if (isTrustedDevice) {
-        await env.LOGS.put(`debug:${Date.now()}`, "skipped: trusted device", { expirationTtl: 3600 });
-        return;
-      }
-
       const knownIpsList = (await env.ATTEMPTS.get("known_ips_list", { type: "json" })) || [];
       const knownIpsEnv = (env.KNOWN_IPS || "").split(",").map(s => s.trim()).filter(Boolean);
       const knownIps = [...knownIpsList, ...knownIpsEnv];
       if (knownIps.includes(ip)) {
-        await env.LOGS.put(`debug:${Date.now()}`, "skipped: known IP", { expirationTtl: 3600 });
+        await env.LOGS.put(`debug:${Date.now()}`, "skipped: trusted IP (manual list)", { expirationTtl: 3600 });
         return;
       }
       if (!env.NTFY_TOPIC) {
@@ -113,16 +105,11 @@ export async function onRequestPost(context) {
   await writeLog("success"); await notifyIfNotOwner("success");
 
   const token = await hashPassword(env.SITE_PASSWORD);
-  const trustedToken = await hashPassword(env.SITE_PASSWORD + "::trusted");
 
   const headers = new Headers();
   headers.append(
     "Set-Cookie",
     `session=${token}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=86400`
-  );
-  headers.append(
-    "Set-Cookie",
-    `trusted_device=${trustedToken}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=31536000`
   );
   headers.append("Content-Type", "application/json");
 
