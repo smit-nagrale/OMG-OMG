@@ -3,6 +3,7 @@ export async function onRequestPost(context) {
   const ip = request.headers.get("CF-Connecting-IP") || "unknown";
   const key = `attempts:${ip}`;
 
+  // Cloudflare automatically attaches geo info to every request — no API needed.
   const cf = request.cf || {};
   const logEntry = {
     ip,
@@ -16,7 +17,7 @@ export async function onRequestPost(context) {
     try {
       const logKey = `log:${Date.now()}:${ip}`;
       await env.LOGS.put(logKey, JSON.stringify({ ...logEntry, result }), {
-        expirationTtl: 60 * 60 * 24 * 30,
+        expirationTtl: 60 * 60 * 24 * 30, // keep logs for 30 days
       });
     } catch {}
   }
@@ -26,22 +27,35 @@ export async function onRequestPost(context) {
       const cookieHeader = request.headers.get("Cookie") || "";
       const trustedExpected = await hashPassword(env.SITE_PASSWORD + "::trusted");
       const isTrustedDevice = cookieHeader.includes(`trusted_device=${trustedExpected}`);
-      if (isTrustedDevice) return;
+      if (isTrustedDevice) {
+        await env.LOGS.put(`debug:${Date.now()}`, "skipped: trusted device", { expirationTtl: 3600 });
+        return;
+      }
 
       const knownIpsList = (await env.ATTEMPTS.get("known_ips_list", { type: "json" })) || [];
       const knownIpsEnv = (env.KNOWN_IPS || "").split(",").map(s => s.trim()).filter(Boolean);
       const knownIps = [...knownIpsList, ...knownIpsEnv];
-      if (knownIps.includes(ip)) return;
-      if (!env.NTFY_TOPIC) return;
+      if (knownIps.includes(ip)) {
+        await env.LOGS.put(`debug:${Date.now()}`, "skipped: known IP", { expirationTtl: 3600 });
+        return;
+      }
+      if (!env.NTFY_TOPIC) {
+        await env.LOGS.put(`debug:${Date.now()}`, "skipped: NTFY_TOPIC not set", { expirationTtl: 3600 });
+        return;
+      }
 
-      await fetch(`https://ntfy.sh/${env.NTFY_TOPIC}`, {
+      const ntfyRes = await fetch(`https://ntfy.sh/${env.NTFY_TOPIC}`, {
         method: "POST",
         headers: { "Title": "Utopia access attempt" },
         body: `${result.toUpperCase()} — ${ip} — ${cf.city || "?"}, ${cf.country || "?"}`,
       });
-    } catch {}
+      await env.LOGS.put(`debug:${Date.now()}`, `sent, ntfy status: ${ntfyRes.status}`, { expirationTtl: 3600 });
+    } catch (err) {
+      await env.LOGS.put(`debug:${Date.now()}`, `ERROR: ${err.message}`, { expirationTtl: 3600 });
+    }
   }
 
+  // ---- Check if this IP is currently locked out ----
   const record = await env.ATTEMPTS.get(key, { type: "json" });
   const now = Date.now();
 
@@ -64,6 +78,7 @@ export async function onRequestPost(context) {
     return new Response(JSON.stringify({ ok: false }), { status: 400 });
   }
 
+  // Verify the captcha token with Cloudflare directly — this is the real check.
   const verifyRes = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -81,14 +96,16 @@ export async function onRequestPost(context) {
   }
 
   if (password !== env.SITE_PASSWORD) {
+    // wrong password -> record the failed attempt
     const newCount = record ? record.count + 1 : 1;
     await env.ATTEMPTS.put(key, JSON.stringify({ count: newCount, lastAttempt: now }), {
-      expirationTtl: 600,
+      expirationTtl: 600, // auto-clears after 10 minutes
     });
     await writeLog("wrong_password"); await notifyIfNotOwner("wrong_password");
     return new Response(JSON.stringify({ ok: false, reason: "password" }), { status: 401 });
   }
 
+  // correct password -> clear any attempt record for this IP
   await env.ATTEMPTS.delete(key);
   await writeLog("success"); await notifyIfNotOwner("success");
 
