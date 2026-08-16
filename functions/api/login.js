@@ -36,6 +36,9 @@ export async function onRequestPost(context) {
         return;
       }
 
+      const tokenStatus = env.NTFY_TOKEN
+        ? `present, length ${env.NTFY_TOKEN.length}, starts "${env.NTFY_TOKEN.slice(0,4)}"`
+        : "MISSING";
       const ntfyRes = await fetch(`https://ntfy.sh/${env.NTFY_TOPIC}`, {
         method: "POST",
         headers: {
@@ -44,7 +47,7 @@ export async function onRequestPost(context) {
         },
         body: `${result.toUpperCase()} — ${ip} — ${cf.city || "?"}, ${cf.country || "?"}`,
       });
-      await env.LOGS.put(`debug:${Date.now()}`, `sent, ntfy status: ${ntfyRes.status}`, { expirationTtl: 3600 });
+      await env.LOGS.put(`debug:${Date.now()}`, `sent, ntfy status: ${ntfyRes.status}, token: ${tokenStatus}`, { expirationTtl: 3600 });
     } catch (err) {
       await env.LOGS.put(`debug:${Date.now()}`, `ERROR: ${err.message}`, { expirationTtl: 3600 });
     }
