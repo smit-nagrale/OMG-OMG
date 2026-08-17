@@ -31,23 +31,19 @@ export async function onRequestPost(context) {
         await env.LOGS.put(`debug:${Date.now()}`, "skipped: trusted IP (manual list)", { expirationTtl: 3600 });
         return;
       }
-      if (!env.NTFY_TOPIC) {
-        await env.LOGS.put(`debug:${Date.now()}`, "skipped: NTFY_TOPIC not set", { expirationTtl: 3600 });
+      if (!env.DISCORD_WEBHOOK) {
+        await env.LOGS.put(`debug:${Date.now()}`, "skipped: DISCORD_WEBHOOK not set", { expirationTtl: 3600 });
         return;
       }
 
-      const tokenStatus = env.NTFY_TOKEN
-        ? `present, length ${env.NTFY_TOKEN.length}, starts "${env.NTFY_TOKEN.slice(0,4)}"`
-        : "MISSING";
-      const ntfyRes = await fetch(`https://ntfy.sh/${env.NTFY_TOPIC}`, {
+      const discordRes = await fetch(env.DISCORD_WEBHOOK, {
         method: "POST",
-        headers: {
-          "Title": "Utopia access attempt",
-          "Authorization": `Bearer ${env.NTFY_TOKEN}`,
-        },
-        body: `${result.toUpperCase()} — ${ip} — ${cf.city || "?"}, ${cf.country || "?"}`,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content: `**Utopia access attempt** — ${result.toUpperCase()}\nIP: ${ip}\nLocation: ${cf.city || "?"}, ${cf.country || "?"}`,
+        }),
       });
-      await env.LOGS.put(`debug:${Date.now()}`, `sent, ntfy status: ${ntfyRes.status}, token: ${tokenStatus}`, { expirationTtl: 3600 });
+      await env.LOGS.put(`debug:${Date.now()}`, `sent, discord status: ${discordRes.status}`, { expirationTtl: 3600 });
     } catch (err) {
       await env.LOGS.put(`debug:${Date.now()}`, `ERROR: ${err.message}`, { expirationTtl: 3600 });
     }
