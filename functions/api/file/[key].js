@@ -1,6 +1,5 @@
 // functions/api/file/[key].js
 // Serves a file back out of Google Drive by its file ID ("key").
-
 import { getAccessToken } from "../../utils/googleAuth.js";
 
 export async function onRequestGet(context) {
@@ -13,7 +12,6 @@ export async function onRequestGet(context) {
 
   try {
     const accessToken = await getAccessToken(env);
-
     const driveRes = await fetch(
       `https://www.googleapis.com/drive/v3/files/${key}?alt=media`,
       {
@@ -46,7 +44,6 @@ export async function onRequestDelete(context) {
 
   try {
     const accessToken = await getAccessToken(env);
-
     const driveRes = await fetch(
       `https://www.googleapis.com/drive/v3/files/${key}`,
       {
