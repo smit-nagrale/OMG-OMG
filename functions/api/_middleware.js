@@ -8,5 +8,8 @@ export async function onRequest(context) {
     return next();
   }
 
-  return Response.redirect(new URL("/", request.url), 302);
+  return new Response(JSON.stringify({ error: "Unauthorized" }), {
+    status: 401,
+    headers: { "Content-Type": "application/json" },
+  });
 }
