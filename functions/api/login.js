@@ -1,3 +1,5 @@
+import { createSession } from "../utils/session.js";
+
 export async function onRequestPost(context) {
   const { request, env } = context;
   const ip = request.headers.get("CF-Connecting-IP") || "unknown";
@@ -103,22 +105,16 @@ export async function onRequestPost(context) {
   await env.ATTEMPTS.delete(key);
   await writeLog("success"); await notifyIfNotOwner("success");
 
-  const token = await hashPassword(env.SITE_PASSWORD);
+  // Issue a real random, expiring, per-login session token stored in KV —
+  // replaces the old static hash-of-password approach.
+  const { token, ttlSeconds } = await createSession(env, ip);
 
   const headers = new Headers();
   headers.append(
     "Set-Cookie",
-    `session=${token}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=86400`
+    `session=${token}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${ttlSeconds}`
   );
   headers.append("Content-Type", "application/json");
 
   return new Response(JSON.stringify({ ok: true }), { status: 200, headers });
-}
-
-async function hashPassword(pw) {
-  const enc = new TextEncoder().encode(pw);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", enc);
-  return Array.from(new Uint8Array(hashBuffer))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
 }
