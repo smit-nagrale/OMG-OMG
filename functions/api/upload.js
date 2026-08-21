@@ -1,12 +1,10 @@
 // functions/api/upload.js
 // Handles file uploads (images/audio) into Google Drive for Wishes and Dreams.
 // Expects a multipart/form-data POST with a "file" field.
-
 import { getAccessToken } from "../utils/googleAuth.js";
 
 export async function onRequestPost(context) {
   const { request, env } = context;
-
   try {
     const formData = await request.formData();
     const file = formData.get("file");
@@ -18,7 +16,6 @@ export async function onRequestPost(context) {
       );
     }
 
-    // Basic size guard (adjust as needed). 20MB here.
     const MAX_SIZE = 20 * 1024 * 1024;
     if (file.size > MAX_SIZE) {
       return new Response(
@@ -27,7 +24,6 @@ export async function onRequestPost(context) {
       );
     }
 
-    // Only allow images and audio.
     const allowedPrefixes = ["image/", "audio/"];
     const isAllowed = allowedPrefixes.some((p) => file.type.startsWith(p));
     if (!isAllowed) {
@@ -39,7 +35,6 @@ export async function onRequestPost(context) {
 
     const accessToken = await getAccessToken(env);
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-
     const metadata = {
       name: `${Date.now()}-${safeName}`,
       parents: [env.GOOGLE_DRIVE_FOLDER_ID],
@@ -47,7 +42,6 @@ export async function onRequestPost(context) {
 
     const boundary = "utopia-upload-" + crypto.randomUUID();
     const fileBuffer = await file.arrayBuffer();
-
     const bodyParts = [
       `--${boundary}\r\n`,
       "Content-Type: application/json; charset=UTF-8\r\n\r\n",
@@ -55,7 +49,6 @@ export async function onRequestPost(context) {
       `--${boundary}\r\n`,
       `Content-Type: ${file.type}\r\n\r\n`,
     ];
-
     const multipartBody = new Blob([
       bodyParts[0] + bodyParts[1] + bodyParts[2] + bodyParts[3] + bodyParts[4],
       fileBuffer,
@@ -83,7 +76,6 @@ export async function onRequestPost(context) {
     }
 
     const driveFile = await driveRes.json();
-
     return new Response(
       JSON.stringify({
         success: true,
