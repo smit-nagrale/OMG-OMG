@@ -59,11 +59,22 @@
   .article-body p{ font-size:15px; color:var(--dim); line-height:1.8; margin-bottom:20px; }
   .article-media{ display:flex; gap:14px; flex-wrap:wrap; margin-top:10px; }
   .media-slot{
-    width:100%; max-width:280px; height:150px; border:1px dashed var(--line); border-radius:6px;
+    position:relative; width:100%; max-width:280px; height:150px; border:1px dashed var(--line); border-radius:6px;
     display:flex; align-items:center; justify-content:center; color:var(--dim); font-size:11px;
-    letter-spacing:.05em; text-transform:uppercase; cursor:pointer;
+    letter-spacing:.05em; text-transform:uppercase; cursor:pointer; overflow:hidden; text-align:center; padding:10px;
   }
   .media-slot:hover{ border-color:var(--gold-dim); color:var(--gold-dim); }
+  .media-slot input[type="file"]{ display:none; }
+  .media-slot img{ width:100%; height:100%; object-fit:cover; border-radius:5px; }
+  .media-slot.has-audio{ flex-direction:column; gap:10px; border-style:solid; cursor:default; }
+  .media-slot audio{ width:100%; }
+  .media-slot .slot-remove{
+    position:absolute; top:6px; right:6px; width:22px; height:22px; border-radius:50%;
+    background:rgba(8,19,16,0.85); border:1px solid var(--line); color:var(--text);
+    display:flex; align-items:center; justify-content:center; font-size:13px; cursor:pointer; z-index:2;
+  }
+  .media-slot .slot-remove:hover{ border-color:var(--gold); color:var(--gold); }
+  .media-slot.uploading{ color:var(--gold-dim); cursor:default; }
 
   /* ---- edit panel (inside article, toggled) ---- */
   .edit-panel{ display:none; margin-top:24px; padding-top:24px; border-top:1px solid var(--line); }
@@ -111,13 +122,16 @@
 </div>
 
 <script>
+  // Each item can now carry imageKey / audioKey — the Drive file id
+  // returned by /api/upload. The actual bytes live in Drive; we only
+  // ever store the key, and load them back through /api/file/[key].
   let items = [
-    { title: "Build a business that creates freedom", text: "Not just income — actual freedom over time and decisions.", checked: false },
-    { title: "Master a craft worth sharing", text: "Something good enough people ask you to teach it.", checked: false },
-    { title: "Travel somewhere that changes perspective", text: "Not a vacation — a place that shifts how you see things.", checked: false },
-    { title: "Create something people remember", text: "Work that outlasts the moment it was made in.", checked: false },
-    { title: "Develop unshakeable discipline", text: "Show up on the days motivation doesn't.", checked: false },
-    { title: "Build deep, lasting relationships", text: "Few people, fully known, for the long run.", checked: false },
+    { title: "Build a business that creates freedom", text: "Not just income — actual freedom over time and decisions.", checked: false, imageKey: null, audioKey: null },
+    { title: "Master a craft worth sharing", text: "Something good enough people ask you to teach it.", checked: false, imageKey: null, audioKey: null },
+    { title: "Travel somewhere that changes perspective", text: "Not a vacation — a place that shifts how you see things.", checked: false, imageKey: null, audioKey: null },
+    { title: "Create something people remember", text: "Work that outlasts the moment it was made in.", checked: false, imageKey: null, audioKey: null },
+    { title: "Develop unshakeable discipline", text: "Show up on the days motivation doesn't.", checked: false, imageKey: null, audioKey: null },
+    { title: "Build deep, lasting relationships", text: "Few people, fully known, for the long run.", checked: false, imageKey: null, audioKey: null },
   ];
 
   const list = document.getElementById('list');
@@ -183,15 +197,13 @@
       </div>
       <div class="article-body"><p>${item.text}</p></div>
       <div class="article-media">
-        <div class="media-slot">image (optional)</div>
-        <div class="media-slot">voice note (optional)</div>
+        <div class="media-slot" id="imageSlot"></div>
+        <div class="media-slot" id="audioSlot"></div>
       </div>
       <div class="edit-panel" id="editPanel">
         <textarea id="editText">${item.text}</textarea>
         <div class="edit-actions">
           <button class="primary" onclick="saveEdit(${i})">Save text</button>
-          <button onclick="alert('Image upload wires up once storage is set up.')">Add image</button>
-          <button onclick="alert('Voice note wires up once storage is set up.')">Add voice note</button>
           <button class="tick" onclick="toggleCheck(${i}); openArticle(${i})">${item.checked ? 'Mark not done' : 'Mark done'}</button>
         </div>
       </div>
@@ -200,6 +212,104 @@
       document.getElementById('editPanel').classList.toggle('open');
     };
     if(editMode) document.getElementById('editPanel').classList.add('open');
+
+    renderMediaSlot('imageSlot', i, 'imageKey', 'image/*', 'image');
+    renderMediaSlot('audioSlot', i, 'audioKey', 'audio/*', 'voice note');
+  }
+
+  function renderMediaSlot(slotId, i, field, accept, label){
+    const slot = document.getElementById(slotId);
+    const key = items[i][field];
+    slot.className = 'media-slot';
+    slot.innerHTML = '';
+
+    if(key){
+      slot.classList.remove('uploading');
+      const removeBtn = document.createElement('div');
+      removeBtn.className = 'slot-remove';
+      removeBtn.textContent = '×';
+      removeBtn.onclick = (e)=>{ e.stopPropagation(); removeMedia(i, field, key, slotId, label==='image'?'image/*':'audio/*', label); };
+      slot.appendChild(removeBtn);
+
+      if(field === 'imageKey'){
+        const img = document.createElement('img');
+        img.src = `/api/file/${key}`;
+        img.alt = label;
+        slot.appendChild(img);
+      } else {
+        slot.classList.add('has-audio');
+        const audio = document.createElement('audio');
+        audio.controls = true;
+        audio.src = `/api/file/${key}`;
+        slot.appendChild(audio);
+      }
+      return;
+    }
+
+    // empty slot: click to pick a file
+    slot.textContent = `${label} (optional)`;
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = accept;
+    slot.appendChild(input);
+    slot.onclick = ()=> input.click();
+    input.onchange = ()=>{
+      if(input.files && input.files[0]){
+        uploadMedia(i, field, input.files[0], slotId, accept, label);
+      }
+    };
+  }
+
+  async function uploadMedia(i, field, file, slotId, accept, label){
+    const slot = document.getElementById(slotId);
+    slot.onclick = null;
+    slot.classList.add('uploading');
+    slot.innerHTML = `Uploading ${label}...`;
+
+    try{
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/upload', { method: 'POST', body: formData });
+      const data = await res.json();
+
+      if(!res.ok || !data.success){
+        throw new Error(data.error || 'Upload failed');
+      }
+
+      items[i][field] = data.key;
+      renderMediaSlot(slotId, i, field, accept, label);
+    } catch(err){
+      slot.classList.remove('uploading');
+      slot.textContent = `Upload failed — tap to retry`;
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = accept;
+      slot.appendChild(input);
+      slot.onclick = ()=> input.click();
+      input.onchange = ()=>{
+        if(input.files && input.files[0]){
+          uploadMedia(i, field, input.files[0], slotId, accept, label);
+        }
+      };
+      alert(`Couldn't upload ${label}: ${err.message}`);
+    }
+  }
+
+  async function removeMedia(i, field, key, slotId, accept, label){
+    if(!confirm(`Remove this ${label}?`)) return;
+    const slot = document.getElementById(slotId);
+    slot.classList.add('uploading');
+    slot.innerHTML = 'Removing...';
+
+    try{
+      await fetch(`/api/file/${key}`, { method: 'DELETE' });
+    } catch(err){
+      // even if delete fails server-side, we still detach it locally
+      // so the user isn't stuck — they can re-upload over it.
+    }
+
+    items[i][field] = null;
+    renderMediaSlot(slotId, i, field, accept, label);
   }
 
   function saveEdit(i){
@@ -210,7 +320,7 @@
   function addItem(){
     const input = document.getElementById('newItem');
     if(!input.value.trim()) return;
-    items.unshift({title:input.value.trim(), text:"", checked:false});
+    items.unshift({title:input.value.trim(), text:"", checked:false, imageKey:null, audioKey:null});
     input.value = '';
     renderList();
   }
