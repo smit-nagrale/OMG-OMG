@@ -39,20 +39,36 @@
   /* ---- entry form ---- */
   .form-title{ font-family:'Fraunces',serif; font-weight:500; font-size:22px; margin:50px 0 18px; }
   form.entry{
-    display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px;
-    max-width:760px; background:var(--ink-2); border:1px solid var(--line); border-radius:12px; padding:22px;
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:16px;
+    max-width:760px; background:var(--ink-2); border:1px solid var(--line); border-radius:12px;
+    padding:22px clamp(14px,3vw,26px);
   }
   .field{ display:flex; flex-direction:column; gap:6px; }
   .field label{ font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--dim); }
-  .field input{
+
+  /* Themed inputs — applies to every input in the form, including the
+     subject correct/wrong pairs, so nothing renders as a browser-default
+     white box. */
+  form.entry input{
+    width:100%;
     background:var(--ink); border:1px solid var(--line); border-radius:8px;
     padding:10px 12px; color:var(--text); font-family:'Inter',sans-serif; font-size:14px; outline:none;
+    -webkit-appearance:none; appearance:none;
+    color-scheme:dark;
   }
-  .field input:focus{ border-color:var(--gold-dim); }
-  .subj-group{ grid-column:1 / -1; display:flex; gap:14px; flex-wrap:wrap; padding-top:6px; border-top:1px solid var(--line); }
-  .subj-group .subj{ flex:1; min-width:160px; }
-  .subj-name{ font-family:'Fraunces',serif; font-size:14px; color:var(--gold-dim); margin-bottom:8px; }
-  .subj-fields{ display:flex; gap:10px; }
+  form.entry input::placeholder{ color:var(--dim); opacity:.7; }
+  form.entry input:focus{ border-color:var(--gold-dim); }
+
+  .subj-group{
+    grid-column:1 / -1; display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+    gap:16px; padding-top:16px; margin-top:2px; border-top:1px solid var(--line);
+  }
+  .subj{ display:flex; flex-direction:column; gap:8px; }
+  .subj-name{ font-family:'Fraunces',serif; font-size:14px; color:var(--gold-dim); }
+  .subj-fields{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .subj-fields .field{ gap:4px; }
+  .subj-fields .field label{ font-size:9px; }
+
   .form-actions{ grid-column:1 / -1; display:flex; justify-content:flex-end; padding-top:6px; }
   .form-actions button{
     background:none; border:1px solid var(--gold-dim); color:var(--gold-dim); border-radius:8px;
@@ -62,10 +78,18 @@
   .form-actions button:hover{ color:var(--gold); border-color:var(--gold); }
   .form-error{ grid-column:1 / -1; color:var(--red); font-size:12px; min-height:14px; }
 
+  @media (max-width:520px){
+    form.entry{ grid-template-columns:1fr; }
+    .subj-group{ grid-template-columns:1fr; }
+    .form-actions{ justify-content:stretch; }
+    .form-actions button{ width:100%; }
+  }
+
   /* ---- table ---- */
-  table{ width:100%; max-width:960px; border-collapse:collapse; font-size:13px; margin-top:26px; }
+  .table-wrap{ max-width:960px; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  table{ width:100%; min-width:560px; border-collapse:collapse; font-size:13px; margin-top:26px; }
   th{ text-align:left; color:var(--dim); font-weight:400; letter-spacing:.05em; text-transform:uppercase; font-size:10px; padding:10px 12px; border-bottom:1px solid var(--line); }
-  td{ padding:11px 12px; border-bottom:1px solid var(--line); }
+  td{ padding:11px 12px; border-bottom:1px solid var(--line); white-space:nowrap; }
   td.pct{ color:var(--gold); }
   .del-btn{ background:none; border:none; color:var(--dim); cursor:pointer; font-size:14px; }
   .del-btn:hover{ color:var(--red); }
@@ -113,22 +137,40 @@
     <div class="subj">
       <div class="subj-name">Physics</div>
       <div class="subj-fields">
-        <input type="number" min="0" step="1" placeholder="Correct" id="pCorrect" required>
-        <input type="number" min="0" step="1" placeholder="Wrong" id="pWrong" required>
+        <div class="field">
+          <label>Correct</label>
+          <input type="number" min="0" step="1" id="pCorrect" required>
+        </div>
+        <div class="field">
+          <label>Wrong</label>
+          <input type="number" min="0" step="1" id="pWrong" required>
+        </div>
       </div>
     </div>
     <div class="subj">
       <div class="subj-name">Chemistry</div>
       <div class="subj-fields">
-        <input type="number" min="0" step="1" placeholder="Correct" id="cCorrect" required>
-        <input type="number" min="0" step="1" placeholder="Wrong" id="cWrong" required>
+        <div class="field">
+          <label>Correct</label>
+          <input type="number" min="0" step="1" id="cCorrect" required>
+        </div>
+        <div class="field">
+          <label>Wrong</label>
+          <input type="number" min="0" step="1" id="cWrong" required>
+        </div>
       </div>
     </div>
     <div class="subj">
       <div class="subj-name">Biology</div>
       <div class="subj-fields">
-        <input type="number" min="0" step="1" placeholder="Correct" id="bCorrect" required>
-        <input type="number" min="0" step="1" placeholder="Wrong" id="bWrong" required>
+        <div class="field">
+          <label>Correct</label>
+          <input type="number" min="0" step="1" id="bCorrect" required>
+        </div>
+        <div class="field">
+          <label>Wrong</label>
+          <input type="number" min="0" step="1" id="bWrong" required>
+        </div>
       </div>
     </div>
   </div>
@@ -139,6 +181,7 @@
   </div>
 </form>
 
+<div class="table-wrap">
 <table id="scoreTable" style="display:none;">
   <thead>
     <tr>
@@ -148,6 +191,7 @@
   </thead>
   <tbody id="tableBody"></tbody>
 </table>
+</div>
 <div class="empty" id="tableEmpty">No entries yet.</div>
 
 <script>
