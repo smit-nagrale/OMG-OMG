@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Saturday Test</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;1,9..144,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#081310; --ink-2:#0c1a15; --line:#25392c;
+    --text:#EDEAE0; --dim:#7E9284; --gold:#C79A56; --gold-dim:#8C6530;
+    --green:#4A9B6E; --red:#B85C5C;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background:linear-gradient(180deg, var(--ink) 0%, var(--ink-2) 100%);
+    color:var(--text); font-family:'Inter',sans-serif; min-height:100vh;
+    padding:34px clamp(20px,5vw,60px) 100px;
+  }
+  a.key{ position:fixed; top:24px; left:24px; color:var(--dim); text-decoration:none; font-size:11px; letter-spacing:.1em; text-transform:uppercase; border-bottom:1px solid var(--dim);}
+  h1{ font-family:'Fraunces',serif; font-weight:500; font-size:clamp(28px,4vw,40px); margin:50px 0 8px; }
+  .subhead{ color:var(--dim); font-size:13px; margin-bottom:36px; }
+
+  h2{ font-family:'Fraunces',serif; font-weight:500; font-size:18px; color:var(--text); margin-bottom:2px; }
+  .chart-sub{ color:var(--dim); font-size:11px; margin-bottom:14px; }
+
+  .panel{
+    background:var(--ink-2); border:1px solid var(--line); border-radius:12px;
+    padding:22px clamp(14px,3vw,26px); max-width:960px; margin-bottom:22px;
+  }
+  .panel canvas{ width:100%; display:block; }
+
+  .small-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:16px; max-width:960px; margin-bottom:36px; }
+  .small-grid .panel{ margin-bottom:0; padding:16px 18px; }
+  .small-grid h2{ font-size:15px; }
+
+  .empty{ color:var(--dim); font-size:14px; padding:20px 0; }
+
+  /* ---- entry form ---- */
+  .form-title{ font-family:'Fraunces',serif; font-weight:500; font-size:22px; margin:50px 0 18px; }
+  form.entry{
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px;
+    max-width:760px; background:var(--ink-2); border:1px solid var(--line); border-radius:12px; padding:22px;
+  }
+  .field{ display:flex; flex-direction:column; gap:6px; }
+  .field label{ font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--dim); }
+  .field input{
+    background:var(--ink); border:1px solid var(--line); border-radius:8px;
+    padding:10px 12px; color:var(--text); font-family:'Inter',sans-serif; font-size:14px; outline:none;
+  }
+  .field input:focus{ border-color:var(--gold-dim); }
+  .subj-group{ grid-column:1 / -1; display:flex; gap:14px; flex-wrap:wrap; padding-top:6px; border-top:1px solid var(--line); }
+  .subj-group .subj{ flex:1; min-width:160px; }
+  .subj-name{ font-family:'Fraunces',serif; font-size:14px; color:var(--gold-dim); margin-bottom:8px; }
+  .subj-fields{ display:flex; gap:10px; }
+  .form-actions{ grid-column:1 / -1; display:flex; justify-content:flex-end; padding-top:6px; }
+  .form-actions button{
+    background:none; border:1px solid var(--gold-dim); color:var(--gold-dim); border-radius:8px;
+    padding:10px 22px; cursor:pointer; font-family:'Inter',sans-serif; font-size:13px; letter-spacing:.05em;
+    transition:all .2s ease;
+  }
+  .form-actions button:hover{ color:var(--gold); border-color:var(--gold); }
+  .form-error{ grid-column:1 / -1; color:var(--red); font-size:12px; min-height:14px; }
+
+  /* ---- table ---- */
+  table{ width:100%; max-width:960px; border-collapse:collapse; font-size:13px; margin-top:26px; }
+  th{ text-align:left; color:var(--dim); font-weight:400; letter-spacing:.05em; text-transform:uppercase; font-size:10px; padding:10px 12px; border-bottom:1px solid var(--line); }
+  td{ padding:11px 12px; border-bottom:1px solid var(--line); }
+  td.pct{ color:var(--gold); }
+  .del-btn{ background:none; border:none; color:var(--dim); cursor:pointer; font-size:14px; }
+  .del-btn:hover{ color:var(--red); }
+</style>
+</head>
+<body>
+<a class="key" href="/utopia/">&larr; hub</a>
+<h1>Saturday Test</h1>
+<div class="subhead">Physics · Chemistry · Biology — weekly, +4 / −1 marking</div>
+
+<div class="panel">
+  <h2>Overall performance</h2>
+  <div class="chart-sub">Total % across all tests</div>
+  <canvas id="overallChart" height="260"></canvas>
+  <div class="empty" id="overallEmpty" style="display:none;">No tests logged yet — add one below.</div>
+</div>
+
+<div class="small-grid">
+  <div class="panel">
+    <h2>Physics</h2>
+    <canvas id="physicsChart" height="140"></canvas>
+  </div>
+  <div class="panel">
+    <h2>Chemistry</h2>
+    <canvas id="chemistryChart" height="140"></canvas>
+  </div>
+  <div class="panel">
+    <h2>Biology</h2>
+    <canvas id="biologyChart" height="140"></canvas>
+  </div>
+</div>
+
+<div class="form-title">Log a test</div>
+<form class="entry" id="entryForm">
+  <div class="field">
+    <label>Date</label>
+    <input type="date" id="fDate" required>
+  </div>
+  <div class="field">
+    <label>Max Marks</label>
+    <input type="number" id="fMax" min="1" step="1" required>
+  </div>
+
+  <div class="subj-group">
+    <div class="subj">
+      <div class="subj-name">Physics</div>
+      <div class="subj-fields">
+        <input type="number" min="0" step="1" placeholder="Correct" id="pCorrect" required>
+        <input type="number" min="0" step="1" placeholder="Wrong" id="pWrong" required>
+      </div>
+    </div>
+    <div class="subj">
+      <div class="subj-name">Chemistry</div>
+      <div class="subj-fields">
+        <input type="number" min="0" step="1" placeholder="Correct" id="cCorrect" required>
+        <input type="number" min="0" step="1" placeholder="Wrong" id="cWrong" required>
+      </div>
+    </div>
+    <div class="subj">
+      <div class="subj-name">Biology</div>
+      <div class="subj-fields">
+        <input type="number" min="0" step="1" placeholder="Correct" id="bCorrect" required>
+        <input type="number" min="0" step="1" placeholder="Wrong" id="bWrong" required>
+      </div>
+    </div>
+  </div>
+
+  <div class="form-error" id="formError"></div>
+  <div class="form-actions">
+    <button type="submit" id="submitBtn">Save entry</button>
+  </div>
+</form>
+
+<table id="scoreTable" style="display:none;">
+  <thead>
+    <tr>
+      <th>Date</th><th>Physics</th><th>Chemistry</th><th>Biology</th>
+      <th>Total</th><th>%</th><th></th>
+    </tr>
+  </thead>
+  <tbody id="tableBody"></tbody>
+</table>
+<div class="empty" id="tableEmpty">No entries yet.</div>
+
+<script>
+  let entries = [];
+
+  async function loadEntries(){
+    try{
+      const res = await fetch('/api/scores');
+      const data = await res.json();
+      entries = (data.entries || []).sort((a,b)=> a.date.localeCompare(b.date));
+    } catch(e){
+      entries = [];
+    }
+    renderAll();
+  }
+
+  function renderAll(){
+    drawOverall();
+    drawSubject('physicsChart', entries.map(e => ({ date:e.date, pct: (e.physics.score / e.maxMarks) * 100 })));
+    drawSubject('chemistryChart', entries.map(e => ({ date:e.date, pct: (e.chemistry.score / e.maxMarks) * 100 })));
+    drawSubject('biologyChart', entries.map(e => ({ date:e.date, pct: (e.biology.score / e.maxMarks) * 100 })));
+    renderTable();
+  }
+
+  // ---- canvas line chart helpers ----
+  function setupCanvas(canvas){
+    const dpr = window.devicePixelRatio || 1;
+    const cssWidth = canvas.parentElement.clientWidth - (parseFloat(getComputedStyle(canvas.parentElement).paddingLeft) * 2 || 0);
+    const cssHeight = canvas.height; // uses the html height attr as css px target
+    canvas.width = Math.max(1, canvas.clientWidth || cssWidth) * dpr;
+    canvas.height = (canvas.getAttribute('data-h') || canvas.height) * dpr;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+    return ctx;
+  }
+
+  function lineColor(name, values){
+    if(name !== 'overallChart' || values.length < 2) return '#C79A56';
+    const first = values[0], last = values[values.length-1];
+    if(last > first) return '#4A9B6E';
+    if(last < first) return '#B85C5C';
+    return '#C79A56';
+  }
+
+  function drawLineChart(canvasId, points, opts){
+    opts = opts || {};
+    const canvas = document.getElementById(canvasId);
+    const targetH = opts.height || 260;
+    canvas.setAttribute('data-h', targetH);
+    canvas.style.height = targetH + 'px';
+    const dpr = window.devicePixelRatio || 1;
+    const w = canvas.clientWidth || canvas.parentElement.clientWidth;
+    canvas.width = w * dpr;
+    canvas.height = targetH * dpr;
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0,0,w,targetH);
+
+    const padL = 34, padR = 12, padT = 14, padB = 24;
+    const plotW = w - padL - padR;
+    const plotH = targetH - padT - padB;
+
+    // gridlines + y labels (0/50/100)
+    ctx.strokeStyle = '#25392c';
+    ctx.lineWidth = 1;
+    ctx.fillStyle = '#7E9284';
+    ctx.font = '10px Inter, sans-serif';
+    [0, 50, 100].forEach(v=>{
+      const y = padT + plotH * (1 - v/100);
+      ctx.beginPath();
+      ctx.moveTo(padL, y);
+      ctx.lineTo(padL + plotW, y);
+      ctx.stroke();
+      ctx.fillText(v + '%', 2, y + 3);
+    });
+
+    if(points.length === 0) return;
+
+    const vals = points.map(p => p.pct);
+    const n = points.length;
+    const xFor = i => n === 1 ? padL + plotW/2 : padL + (plotW * i) / (n - 1);
+    const yFor = v => padT + plotH * (1 - Math.max(0, Math.min(100, v)) / 100);
+
+    const color = lineColor(canvasId, vals);
+
+    // line
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    points.forEach((p,i)=>{
+      const x = xFor(i), y = yFor(p.pct);
+      if(i === 0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    });
+    ctx.stroke();
+
+    // points
+    ctx.fillStyle = color;
+    points.forEach((p,i)=>{
+      const x = xFor(i), y = yFor(p.pct);
+      ctx.beginPath();
+      ctx.arc(x, y, 3, 0, Math.PI*2);
+      ctx.fill();
+    });
+
+    // x labels: first, last, and a middle one if room
+    ctx.fillStyle = '#7E9284';
+    ctx.font = '9px Inter, sans-serif';
+    const labelIdx = n <= 6 ? points.map((_,i)=>i) : [0, Math.floor((n-1)/2), n-1];
+    labelIdx.forEach(i=>{
+      const short = points[i].date.slice(5); // MM-DD
+      const x = xFor(i);
+      ctx.textAlign = i === 0 ? 'left' : (i === n-1 ? 'right' : 'center');
+      ctx.fillText(short, x, targetH - 6);
+    });
+    ctx.textAlign = 'left';
+  }
+
+  function drawOverall(){
+    const pts = entries.map(e => ({ date: e.date, pct: e.totalPercent }));
+    document.getElementById('overallEmpty').style.display = pts.length ? 'none' : 'block';
+    drawLineChart('overallChart', pts, { height: 260 });
+  }
+
+  function drawSubject(id, pts){
+    drawLineChart(id, pts, { height: 140 });
+  }
+
+  function renderTable(){
+    const tbody = document.getElementById('tableBody');
+    const table = document.getElementById('scoreTable');
+    const empty = document.getElementById('tableEmpty');
+    tbody.innerHTML = '';
+
+    if(entries.length === 0){
+      table.style.display = 'none';
+      empty.style.display = 'block';
+      return;
+    }
+    table.style.display = 'table';
+    empty.style.display = 'none';
+
+    [...entries].sort((a,b)=> b.date.localeCompare(a.date)).forEach(e=>{
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${e.date}</td>
+        <td>${e.physics.score}</td>
+        <td>${e.chemistry.score}</td>
+        <td>${e.biology.score}</td>
+        <td>${e.totalScore} / ${e.maxMarks}</td>
+        <td class="pct">${e.totalPercent.toFixed(1)}%</td>
+        <td><button class="del-btn" title="Delete">&times;</button></td>
+      `;
+      tr.querySelector('.del-btn').onclick = () => deleteEntry(e.date);
+      tbody.appendChild(tr);
+    });
+  }
+
+  async function deleteEntry(date){
+    if(!confirm(`Delete the ${date} entry?`)) return;
+    try{
+      await fetch(`/api/scores/${date}`, { method: 'DELETE' });
+    } catch(e){}
+    entries = entries.filter(e => e.date !== date);
+    renderAll();
+  }
+
+  document.getElementById('entryForm').addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const errEl = document.getElementById('formError');
+    errEl.textContent = '';
+
+    const date = document.getElementById('fDate').value;
+    const maxMarks = document.getElementById('fMax').value;
+    const payload = {
+      date, maxMarks,
+      physics:   { correct: document.getElementById('pCorrect').value, wrong: document.getElementById('pWrong').value },
+      chemistry: { correct: document.getElementById('cCorrect').value, wrong: document.getElementById('cWrong').value },
+      biology:   { correct: document.getElementById('bCorrect').value, wrong: document.getElementById('bWrong').value },
+    };
+
+    if(!date || !maxMarks){
+      errEl.textContent = 'Date and Max Marks are required.';
+      return;
+    }
+
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+
+    try{
+      const res = await fetch('/api/scores', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if(!res.ok || !data.success){
+        throw new Error(data.error || 'Save failed');
+      }
+      entries = entries.filter(en => en.date !== data.entry.date);
+      entries.push(data.entry);
+      entries.sort((a,b)=> a.date.localeCompare(b.date));
+      renderAll();
+      e.target.reset();
+    } catch(err){
+      errEl.textContent = err.message;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Save entry';
+    }
+  });
+
+  window.addEventListener('resize', renderAll);
+  loadEntries();
+</script>
+</body>
+</html>
