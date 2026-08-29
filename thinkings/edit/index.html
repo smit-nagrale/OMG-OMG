@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Edit Thinking</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;1,9..144,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#081310; --ink-2:#0c1a15; --line:#25392c;
+    --text:#EDEAE0; --dim:#7E9284; --gold:#C79A56; --gold-dim:#8C6530;
+    --red:#B0554A;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background:linear-gradient(180deg, var(--ink) 0%, var(--ink-2) 100%);
+    color:var(--text); font-family:'Inter',sans-serif; min-height:100vh;
+    padding:34px clamp(20px,5vw,60px) 100px;
+  }
+  a.key{ position:fixed; top:24px; left:24px; color:var(--dim); text-decoration:none; font-size:11px; letter-spacing:.1em; text-transform:uppercase; border-bottom:1px solid var(--dim); z-index:5;}
+  .topbar{ display:flex; align-items:center; justify-content:space-between; gap:16px; margin:50px 0 30px; flex-wrap:wrap; }
+  h1{ font-family:'Fraunces',serif; font-weight:500; font-size:clamp(26px,4vw,36px); }
+  .gear{ width:36px; height:36px; border-radius:50%; border:1px solid var(--line); display:flex; align-items:center; justify-content:center; color:var(--dim); text-decoration:none; font-size:16px; cursor:pointer; background:none;}
+  .gear:hover{ color:var(--gold); border-color:var(--gold-dim); }
+  .btn{ background:transparent; border:1px solid var(--gold-dim); color:var(--gold); font-family:'Inter',sans-serif; font-size:12px; letter-spacing:.06em; text-transform:uppercase; padding:9px 16px; border-radius:3px; cursor:pointer; transition:all .2s ease;}
+  .btn:hover{ background:rgba(199,154,86,0.1); border-color:var(--gold); }
+  .btn.danger{ border-color:var(--red); color:#D68B7F; }
+  .btn.danger:hover{ background:rgba(176,85,74,0.1); }
+  .btn.small{ padding:6px 12px; font-size:11px; }
+
+  section.block{ max-width:680px; margin-bottom:44px; }
+  section.block h2{ font-family:'Fraunces',serif; font-weight:500; font-size:18px; color:var(--dim); margin-bottom:14px; letter-spacing:.02em; }
+
+  .list{ display:flex; flex-direction:column; border-top:1px solid var(--line); }
+  .row{ display:flex; align-items:center; gap:14px; padding:16px 4px; border-bottom:1px solid var(--line); cursor:grab; }
+  .row.dragging{ opacity:.4; }
+  .row-title{ font-family:'Fraunces',serif; font-size:16px; flex:1; }
+  .row-tk{ color:var(--dim); font-size:12px; }
+  .row-actions{ display:flex; gap:8px; }
+  .empty{ color:var(--dim); font-size:13px; padding:16px 4px; }
+
+  .num-field{ display:flex; align-items:stretch; border:1px solid var(--line); border-radius:3px; overflow:hidden; margin:10px 0; }
+  .num-prefix{ background:rgba(199,154,86,0.08); color:var(--gold); font-family:'Fraunces',serif; font-size:15px; padding:9px 12px; display:flex; align-items:center; pointer-events:none; user-select:none;}
+  .num-field.tkb .num-prefix{ color:#D68B7F; background:rgba(176,85,74,0.08); }
+  .num-field input{ flex:1; background:transparent; border:none; color:var(--text); font-size:15px; padding:9px 12px; outline:none;}
+  input[type=text], input[type=password]{ width:100%; background:transparent; border:1px solid var(--line); border-radius:3px; color:var(--text); font-size:14px; padding:10px 12px; outline:none; margin:8px 0;}
+  input[type=file]{ color:var(--dim); font-size:13px; margin:8px 0; }
+  label.f{ display:block; font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--dim); margin-top:14px; }
+
+  .overlay{ position:fixed; inset:0; background:rgba(4,9,7,0.88); backdrop-filter:blur(6px); display:flex; align-items:center; justify-content:center; z-index:50; opacity:0; pointer-events:none; transition:opacity .25s ease; }
+  .overlay.open{ opacity:1; pointer-events:all; }
+  .modal{ background:var(--ink-2); border:1px solid var(--line); border-radius:6px; padding:28px; width:min(90vw,420px); max-height:85vh; overflow-y:auto; }
+  .modal h2{ font-family:'Fraunces',serif; font-weight:500; font-size:19px; margin-bottom:6px; }
+  .modal p.sub{ color:var(--dim); font-size:13px; margin-bottom:6px; }
+  .row-btns{ display:flex; gap:10px; margin-top:18px; }
+  .err{ color:#D68B7F; font-size:12px; min-height:16px; margin-top:2px; }
+  .ok-msg{ color:#8FBF9C; font-size:12px; min-height:16px; margin-top:2px; }
+
+  .menu{ position:absolute; top:70px; right:clamp(20px,5vw,60px); background:var(--ink-2); border:1px solid var(--line); border-radius:6px; padding:8px; display:none; flex-direction:column; min-width:170px; z-index:40;}
+  .menu.open{ display:flex; }
+  .menu button{ background:none; border:none; color:var(--text); text-align:left; padding:10px 12px; font-family:'Inter',sans-serif; font-size:13px; cursor:pointer; border-radius:3px;}
+  .menu button:hover{ background:rgba(199,154,86,0.08); }
+
+  .burnscreen{ position:fixed; inset:0; background:#000; display:none; align-items:center; justify-content:center; z-index:200; flex-direction:column; gap:12px;}
+  .burnscreen.open{ display:flex; }
+  .burnscreen span{ font-family:'Fraunces',serif; font-size:22px; color:#D68B7F; letter-spacing:.05em; }
+  .burnscreen small{ color:var(--dim); font-size:12px; }
+</style>
+</head>
+<body>
+<a class="key" href="/thinkings/">&larr; thinkings</a>
+
+<div class="topbar">
+  <h1>Edit Thinking</h1>
+  <button class="gear" onclick="toggleMenu()">&#9881;</button>
+</div>
+
+<div class="menu" id="menu">
+  <button onclick="openCreateModal('normal')">New Thinking</button>
+  <button onclick="openCreateModal('mtb')">Create MTB</button>
+</div>
+
+<div id="editArea" style="display:none;">
+  <section class="block">
+    <h2>Thinkings</h2>
+    <div class="list" id="list"></div>
+  </section>
+
+  <section class="block">
+    <h2>MTB</h2>
+    <button class="btn danger" onclick="openBurnModal()">Edit MTB</button>
+  </section>
+</div>
+
+<!-- edit password gate -->
+<div class="overlay open" id="editGate">
+  <div class="modal">
+    <h2>Edit Thinking</h2>
+    <p class="sub">This panel has its own password.</p>
+    <input type="password" id="editPassword" placeholder="Edit password" onkeydown="if(event.key==='Enter')submitEditGate()">
+    <div class="err" id="editGateErr"></div>
+    <div class="row-btns"><button class="btn" style="flex:1" onclick="submitEditGate()">Enter</button></div>
+  </div>
+</div>
+
+<!-- rename/replace modal -->
+<div class="overlay" id="editModal">
+  <div class="modal">
+    <h2>Edit thinking</h2>
+    <label class="f">Title</label>
+    <input type="text" id="editTitle">
+    <label class="f">Replace PDF (optional)</label>
+    <input type="file" id="editFile" accept="application/pdf">
+    <div class="err" id="editModalErr"></div>
+    <div class="row-btns">
+      <button class="btn" style="flex:1" onclick="closeModal('editModal')">Cancel</button>
+      <button class="btn" style="flex:1" onclick="submitEdit()">Save</button>
+    </div>
+    <div class="row-btns">
+      <button class="btn danger" style="flex:1" onclick="submitDelete()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- create modal (normal or mtb) -->
+<div class="overlay" id="createModal">
+  <div class="modal">
+    <h2 id="createTitle">New Thinking</h2>
+    <label class="f">Name</label>
+    <input type="text" id="createName">
+    <label class="f">TK number</label>
+    <div class="num-field"><div class="num-prefix">TK/</div><input type="text" inputmode="numeric" id="createTk" maxlength="12" oninput="digitsOnly(this)"></div>
+    <div id="tkbFieldWrap" style="display:none;">
+      <label class="f">TKB number (burn code)</label>
+      <div class="num-field tkb"><div class="num-prefix">TKB/</div><input type="text" inputmode="numeric" id="createTkb" maxlength="12" oninput="digitsOnly(this)"></div>
+    </div>
+    <label class="f">PDF file</label>
+    <input type="file" id="createFile" accept="application/pdf">
+    <div class="err" id="createErr"></div>
+    <div class="row-btns">
+      <button class="btn" style="flex:1" onclick="closeModal('createModal')">Cancel</button>
+      <button class="btn" style="flex:1" onclick="submitCreate()">Create</button>
+    </div>
+  </div>
+</div>
+
+<!-- burn modal step 1: enter TKB -->
+<div class="overlay" id="burnFindModal">
+  <div class="modal">
+    <h2>Edit MTB</h2>
+    <p class="sub">Enter the burn code for the file.</p>
+    <div class="num-field tkb"><div class="num-prefix">TKB/</div><input type="text" inputmode="numeric" id="burnTkb" maxlength="12" oninput="digitsOnly(this)"></div>
+    <div class="err" id="burnFindErr"></div>
+    <div class="row-btns">
+      <button class="btn" style="flex:1" onclick="closeModal('burnFindModal')">Cancel</button>
+      <button class="btn danger" style="flex:1" onclick="confirmBurnStep()">Continue</button>
+    </div>
+  </div>
+</div>
+
+<!-- burn modal step 2: confirm -->
+<div class="overlay" id="burnConfirmModal">
+  <div class="modal">
+    <h2>Burn this file?</h2>
+    <p class="sub">This cannot be undone.</p>
+    <div class="row-btns">
+      <button class="btn" style="flex:1" onclick="closeModal('burnConfirmModal')">No</button>
+      <button class="btn danger" style="flex:1" onclick="doBurn()">Burn</button>
+    </div>
+  </div>
+</div>
+
+<div class="burnscreen" id="burnScreen"><span>Burning 🔥</span></div>
+
+<script>
+let editingTk = null, createKind = 'normal', pendingTkb = null, draggedEl = null;
+
+function digitsOnly(el){ el.value = el.value.replace(/\D/g,'').slice(0,12); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+function openModal(id){ document.getElementById(id).classList.add('open'); }
+function toggleMenu(){ document.getElementById('menu').classList.toggle('open'); }
+
+async function submitEditGate(){
+  const password = document.getElementById('editPassword').value;
+  const errEl = document.getElementById('editGateErr');
+  errEl.textContent = '';
+  const res = await fetch('/api/thinkings-edit-login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({password}) });
+  if(res.ok){ closeModal('editGate'); document.getElementById('editArea').style.display = 'block'; loadList(); }
+  else {
+    const d = await res.json().catch(()=>({}));
+    errEl.textContent = d.reason === 'locked' ? 'Too many attempts. Try later.' : 'Wrong password.';
+  }
+}
+
+async function loadList(){
+  const res = await fetch('/api/thinkings/list');
+  const data = await res.json();
+  const items = (data.items || []).sort((a,b)=>(a.order??0)-(b.order??0));
+  const list = document.getElementById('list');
+  list.innerHTML = '';
+  if(items.length === 0){ list.innerHTML = '<div class="empty">No thinkings yet.</div>'; return; }
+  items.forEach(item=>{
+    const el = document.createElement('div');
+    el.className = 'row'; el.draggable = true; el.dataset.tk = item.tk;
+    el.innerHTML = `<div class="row-title">${escapeHtml(item.title)}</div><div class="row-tk">TK/${item.tk}</div>
+      <div class="row-actions"><button class="btn small" onclick="openEditModal('${item.tk}','${escapeAttr(item.title)}')">Edit</button></div>`;
+    el.addEventListener('dragstart', ()=>{ draggedEl = el; el.classList.add('dragging'); });
+    el.addEventListener('dragend', ()=>{ el.classList.remove('dragging'); saveOrder(); });
+    el.addEventListener('dragover', e=>{
+      e.preventDefault();
+      const after = getDragAfter(list, e.clientY);
+      if(after == null) list.appendChild(draggedEl); else list.insertBefore(draggedEl, after);
+    });
+    list.appendChild(el);
+  });
+}
+
+function getDragAfter(container, y){
+  const els = [...container.querySelectorAll('.row:not(.dragging)')];
+  return els.reduce((closest, child)=>{
+    const box = child.getBoundingClientRect();
+    const offset = y - box.top - box.height/2;
+    if(offset < 0 && offset > closest.offset) return { offset, element: child };
+    return closest;
+  }, { offset: -Infinity }).element;
+}
+
+async function saveOrder(){
+  const order = [...document.getElementById('list').querySelectorAll('.row')].map(r=>r.dataset.tk);
+  await fetch('/api/thinkings/reorder', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({order}) });
+}
+
+function openEditModal(tk, title){
+  editingTk = tk;
+  document.getElementById('editTitle').value = title;
+  document.getElementById('editFile').value = '';
+  document.getElementById('editModalErr').textContent = '';
+  openModal('editModal');
+}
+
+async function submitEdit(){
+  const fd = new FormData();
+  fd.append('tk', editingTk);
+  fd.append('title', document.getElementById('editTitle').value);
+  const file = document.getElementById('editFile').files[0];
+  if(file) fd.append('file', file);
+  const res = await fetch('/api/thinkings/edit', { method:'POST', body: fd });
+  if(res.ok){ closeModal('editModal'); loadList(); }
+  else document.getElementById('editModalErr').textContent = 'Save failed.';
+}
+
+async function submitDelete(){
+  if(!confirm('Delete this thinking? This cannot be undone.')) return;
+  const res = await fetch('/api/thinkings/delete', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({tk: editingTk}) });
+  if(res.ok){ closeModal('editModal'); loadList(); }
+}
+
+function openCreateModal(kind){
+  toggleMenu();
+  createKind = kind;
+  document.getElementById('createTitle').textContent = kind === 'mtb' ? 'Create MTB' : 'New Thinking';
+  document.getElementById('tkbFieldWrap').style.display = kind === 'mtb' ? 'block' : 'none';
+  document.getElementById('createName').value = '';
+  document.getElementById('createTk').value = '';
+  document.getElementById('createTkb').value = '';
+  document.getElementById('createFile').value = '';
+  document.getElementById('createErr').textContent = '';
+  openModal('createModal');
+}
+
+async function submitCreate(){
+  const name = document.getElementById('createName').value.trim();
+  const tk = document.getElementById('createTk').value;
+  const tkb = document.getElementById('createTkb').value;
+  const file = document.getElementById('createFile').files[0];
+  const errEl = document.getElementById('createErr');
+
+  if(!name){ errEl.textContent = 'Name required.'; return; }
+  if(!/^\d{1,12}$/.test(tk)){ errEl.textContent = 'TK number: digits only, up to 12.'; return; }
+  if(createKind === 'mtb' && !/^\d{1,12}$/.test(tkb)){ errEl.textContent = 'TKB number: digits only, up to 12.'; return; }
+  if(!file || file.type !== 'application/pdf'){ errEl.textContent = 'PDF file required.'; return; }
+
+  const fd = new FormData();
+  fd.append('title', name); fd.append('tk', tk); fd.append('file', file);
+  if(createKind === 'mtb') fd.append('tkb', tkb);
+
+  const res = await fetch(createKind === 'mtb' ? '/api/thinkings/create-mtb' : '/api/thinkings/create', { method:'POST', body: fd });
+  if(res.ok){ closeModal('createModal'); loadList(); }
+  else {
+    const d = await res.json().catch(()=>({}));
+    errEl.textContent = d.reason === 'tk_taken' ? 'That TK number is already used.' : d.reason === 'tkb_taken' ? 'That TKB number is already used.' : 'Create failed.';
+  }
+}
+
+function openBurnModal(){
+  document.getElementById('burnTkb').value = '';
+  document.getElementById('burnFindErr').textContent = '';
+  openModal('burnFindModal');
+}
+function confirmBurnStep(){
+  const tkb = document.getElementById('burnTkb').value;
+  if(!/^\d{1,12}$/.test(tkb)){ document.getElementById('burnFindErr').textContent = 'Digits only, up to 12.'; return; }
+  pendingTkb = tkb;
+  closeModal('burnFindModal');
+  openModal('burnConfirmModal');
+}
+async function doBurn(){
+  closeModal('burnConfirmModal');
+  const screen = document.getElementById('burnScreen');
+  screen.classList.add('open');
+  const minWait = new Promise(r=>setTimeout(r,5000));
+  const req = fetch('/api/thinkings/burn', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({tkb: pendingTkb}) });
+  const [, res] = await Promise.all([minWait, req]);
+  screen.classList.remove('open');
+  if(!res.ok){ alert('No MTB file found with that code.'); }
+}
+
+function escapeHtml(s){ const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+function escapeAttr(s){ return s.replace(/'/g,"\\'"); }
+
+document.addEventListener('click', e=>{
+  const menu = document.getElementById('menu');
+  if(menu.classList.contains('open') && !menu.contains(e.target) && e.target.tagName !== 'BUTTON') menu.classList.remove('open');
+});
+</script>
+</body>
+</html>
