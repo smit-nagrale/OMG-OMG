@@ -288,7 +288,16 @@ async function submitCreate(){
   if(res.ok){ closeModal('createModal'); loadList(); }
   else {
     const d = await res.json().catch(()=>({}));
-    errEl.textContent = d.reason === 'tk_taken' ? 'That TK number is already used.' : d.reason === 'tkb_taken' ? 'That TKB number is already used.' : 'Create failed.';
+    console.error('create failed', res.status, d);
+    const messages = {
+      tk_taken: 'That TK number is already used.',
+      tkb_taken: 'That TKB number is already used.',
+      edit_auth: 'Edit session expired — reload and re-enter the edit password.',
+      invalid: 'Check the name and numbers.',
+      pdf_only: 'Only PDF files are accepted.',
+      drive: 'Google Drive upload failed — check Drive credentials/quota.',
+    };
+    errEl.textContent = (messages[d.reason] || `Create failed (status ${res.status}${d.reason ? ', ' + d.reason : ''}).`);
   }
 }
 
