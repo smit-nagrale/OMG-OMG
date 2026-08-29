@@ -1,0 +1,11 @@
+<!-- burn modal step 2: confirm -->
+<div class="overlay" id="burnConfirmModal">
+  <div class="modal">
+    <h2>Burn this file?</h2>
+    <p class="sub">This cannot be undone.</p>
+    <div class="row-btns">
+      <button class="btn" style="flex:1" onclick="closeModal('burnConfirmModal')">No</button>
+      <button class="btn danger" style="flex:1" onclick="doBurn()">Burn</button>
+    </div>
+  </div>
+</div>
