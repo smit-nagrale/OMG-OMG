@@ -1,11 +1,256 @@
-<!-- burn modal step 2: confirm -->
-<div class="overlay" id="burnConfirmModal">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Thinkings</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;1,9..144,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  :root{
+    --ink:#081310; --ink-2:#0c1a15; --line:#25392c;
+    --text:#EDEAE0; --dim:#7E9284; --gold:#C79A56; --gold-dim:#8C6530;
+    --red:#B0554A;
+  }
+  *{box-sizing:border-box; margin:0; padding:0; -webkit-user-select:none; user-select:none;}
+  body{
+    background:linear-gradient(180deg, var(--ink) 0%, var(--ink-2) 100%);
+    color:var(--text); font-family:'Inter',sans-serif; min-height:100vh;
+    padding:34px clamp(20px,5vw,60px) 100px;
+  }
+  a.key{ position:fixed; top:24px; left:24px; color:var(--dim); text-decoration:none; font-size:11px; letter-spacing:.1em; text-transform:uppercase; border-bottom:1px solid var(--dim); z-index:5;}
+  .topbar{ display:flex; align-items:center; justify-content:space-between; gap:16px; margin:50px 0 30px; flex-wrap:wrap; }
+  h1{ font-family:'Fraunces',serif; font-weight:500; font-size:clamp(28px,4vw,40px); }
+  .actions{ display:flex; gap:10px; align-items:center; }
+  .btn{
+    background:transparent; border:1px solid var(--gold-dim); color:var(--gold);
+    font-family:'Inter',sans-serif; font-size:12px; letter-spacing:.06em; text-transform:uppercase;
+    padding:9px 16px; border-radius:3px; cursor:pointer; transition:all .2s ease; text-decoration:none;
+  }
+  .btn:hover{ background:rgba(199,154,86,0.1); border-color:var(--gold); }
+  .btn.mtb{ border-color:var(--red); color:#D68B7F; }
+  .btn.mtb:hover{ background:rgba(176,85,74,0.1); border-color:#D68B7F; }
+  .gear{ width:36px; height:36px; border-radius:50%; border:1px solid var(--line); display:flex; align-items:center; justify-content:center; color:var(--dim); text-decoration:none; font-size:16px; }
+  .gear:hover{ color:var(--gold); border-color:var(--gold-dim); }
+
+  .search{
+    width:100%; max-width:680px; background:transparent; border:none; border-bottom:1px solid var(--line);
+    color:var(--text); font-family:'Inter',sans-serif; font-size:14px; padding:12px 4px; margin-bottom:22px; outline:none;
+  }
+  .search::placeholder{ color:var(--dim); }
+
+  .list{ display:flex; flex-direction:column; max-width:680px; border-top:1px solid var(--line); }
+  .row{ display:flex; align-items:center; gap:16px; padding:18px 4px; border-bottom:1px solid var(--line); cursor:pointer; transition:background .2s ease; -webkit-user-select:none; user-select:none;}
+  .row:hover{ background:rgba(199,154,86,0.04); }
+  .row-title{ font-family:'Fraunces',serif; font-size:18px; font-weight:500; flex:1; }
+  .row-tk{ color:var(--dim); font-size:12px; letter-spacing:.05em; }
+  .row-arrow{ color:var(--dim); font-size:13px; }
+  .empty{ color:var(--dim); font-size:13px; padding:20px 4px; }
+
+  /* number input with locked prefix */
+  .num-field{ display:flex; align-items:stretch; border:1px solid var(--line); border-radius:3px; overflow:hidden; margin:14px 0; }
+  .num-prefix{ background:rgba(199,154,86,0.08); color:var(--gold); font-family:'Fraunces',serif; font-size:16px; padding:10px 12px; display:flex; align-items:center; letter-spacing:.02em; -webkit-user-select:none; user-select:none; pointer-events:none;}
+  .num-field input{ flex:1; background:transparent; border:none; color:var(--text); font-size:16px; padding:10px 12px; outline:none; letter-spacing:.05em; -webkit-user-select:text; user-select:text;}
+
+  /* overlays / modals */
+  .overlay{ position:fixed; inset:0; background:rgba(4,9,7,0.88); backdrop-filter:blur(6px); display:flex; align-items:center; justify-content:center; z-index:50; opacity:0; pointer-events:none; transition:opacity .25s ease; }
+  .overlay.open{ opacity:1; pointer-events:all; }
+  .modal{ background:var(--ink-2); border:1px solid var(--line); border-radius:6px; padding:30px; width:min(90vw,380px); }
+  .modal h2{ font-family:'Fraunces',serif; font-weight:500; font-size:20px; margin-bottom:6px; }
+  .modal p.sub{ color:var(--dim); font-size:13px; margin-bottom:6px; }
+  .modal input[type=password]{ width:100%; background:transparent; border:1px solid var(--line); border-radius:3px; color:var(--text); font-size:14px; padding:10px 12px; outline:none; margin:14px 0; -webkit-user-select:text; user-select:text;}
+  .modal .row-btns{ display:flex; gap:10px; margin-top:16px; }
+  .err{ color:#D68B7F; font-size:12px; min-height:16px; margin-top:2px; }
+
+  /* pdf viewer */
+  .viewer-wrap{ display:none; max-width:820px; }
+  .viewer-wrap.open{ display:block; animation:fadeUp .4s ease; }
+  @keyframes fadeUp{ from{opacity:0; transform:translateY(8px)} to{opacity:1; transform:translateY(0)} }
+  .back-to-list{ display:inline-block; margin-bottom:22px; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--dim); cursor:pointer; border-bottom:1px solid var(--dim); }
+  .back-to-list:hover{ color:var(--text); border-color:var(--text); }
+  .viewer-title{ font-family:'Fraunces',serif; font-weight:500; font-size:clamp(24px,4vw,32px); margin-bottom:6px; }
+  .viewer-tk{ color:var(--dim); font-size:12px; margin-bottom:22px; }
+  #pdfPages{ display:flex; flex-direction:column; gap:14px; max-height:78vh; overflow-y:auto; padding-right:4px; position:relative; }
+  #pdfPages canvas{ width:100%; height:auto; border:1px solid var(--line); border-radius:4px; -webkit-user-select:none; user-select:none; pointer-events:none;}
+  .privacy-shield{ position:absolute; inset:0; background:var(--ink); display:flex; align-items:center; justify-content:center; color:var(--dim); font-size:12px; letter-spacing:.08em; text-transform:uppercase; z-index:10;}
+  .loading{ color:var(--dim); font-size:13px; padding:20px 0; }
+
+  /* burn / black screen */
+  .burnscreen{ position:fixed; inset:0; background:#000; display:none; align-items:center; justify-content:center; z-index:200; }
+  .burnscreen.open{ display:flex; }
+  .burnscreen span{ font-family:'Fraunces',serif; font-size:22px; color:#D68B7F; letter-spacing:.05em; }
+</style>
+</head>
+<body oncontextmenu="return false;">
+<a class="key" href="/utopia/">&larr; hub</a>
+
+<div class="topbar">
+  <h1>Thinkings</h1>
+  <div class="actions">
+    <button class="btn mtb" onclick="openMtbModal()">MTB</button>
+    <a class="gear" href="/thinkings/edit/" title="Edit Thinking">&#9881;</a>
+  </div>
+</div>
+
+<input class="search" id="search" placeholder="Search by title or TK number..." oninput="onSearch()">
+
+<div class="list" id="list"></div>
+<div class="viewer-wrap" id="viewerWrap">
+  <div class="back-to-list" onclick="closeViewer()">&larr; all thinkings</div>
+  <div class="viewer-title" id="viewerTitle"></div>
+  <div class="viewer-tk" id="viewerTk"></div>
+  <div id="pdfPages"></div>
+</div>
+
+<!-- gate overlay -->
+<div class="overlay" id="gateOverlay">
   <div class="modal">
-    <h2>Burn this file?</h2>
-    <p class="sub">This cannot be undone.</p>
+    <h2>Enter Thinkings</h2>
+    <p class="sub">This section has its own password.</p>
+    <input type="password" id="gatePassword" placeholder="Password" onkeydown="if(event.key==='Enter')submitGate()">
+    <div class="err" id="gateErr"></div>
+    <div class="row-btns"><button class="btn" style="flex:1" onclick="submitGate()">Enter</button></div>
+  </div>
+</div>
+
+<!-- MTB access modal -->
+<div class="overlay" id="mtbOverlay">
+  <div class="modal">
+    <h2>MTB</h2>
+    <p class="sub">Enter thinking number to access document.</p>
+    <div class="num-field">
+      <div class="num-prefix">TK/</div>
+      <input type="text" inputmode="numeric" id="mtbNum" maxlength="12" oninput="digitsOnly(this)" onkeydown="if(event.key==='Enter')submitMtb()">
+    </div>
+    <div class="err" id="mtbErr"></div>
     <div class="row-btns">
-      <button class="btn" style="flex:1" onclick="closeModal('burnConfirmModal')">No</button>
-      <button class="btn danger" style="flex:1" onclick="doBurn()">Burn</button>
+      <button class="btn" style="flex:1" onclick="closeModal('mtbOverlay')">Cancel</button>
+      <button class="btn" style="flex:1" onclick="submitMtb()">View</button>
     </div>
   </div>
 </div>
+
+<div class="burnscreen" id="burnScreen"><span>Burning 🔥</span></div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+let items = [];
+
+function digitsOnly(el){ el.value = el.value.replace(/\D/g,'').slice(0,12); }
+
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+function openModal(id){ document.getElementById(id).classList.add('open'); }
+
+async function boot(){
+  const res = await fetch('/api/thinkings/list');
+  if(res.status === 401){ openModal('gateOverlay'); return; }
+  const data = await res.json();
+  items = data.items || [];
+  renderList();
+}
+
+async function submitGate(){
+  const password = document.getElementById('gatePassword').value;
+  const errEl = document.getElementById('gateErr');
+  errEl.textContent = '';
+  const res = await fetch('/api/thinkings-login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({password}) });
+  if(res.ok){ closeModal('gateOverlay'); boot(); }
+  else {
+    const d = await res.json().catch(()=>({}));
+    errEl.textContent = d.reason === 'locked' ? 'Too many attempts. Try later.' : 'Wrong password.';
+  }
+}
+
+function onSearch(){
+  const q = document.getElementById('search').value;
+  fetch('/api/thinkings/list?q=' + encodeURIComponent(q)).then(r=>r.json()).then(d=>{ items = d.items || []; renderList(); });
+}
+
+function renderList(){
+  const list = document.getElementById('list');
+  document.getElementById('viewerWrap').classList.remove('open');
+  list.style.display = 'flex';
+  list.innerHTML = '';
+  if(items.length === 0){ list.innerHTML = '<div class="empty">No thinkings yet.</div>'; return; }
+  items.forEach(item=>{
+    const el = document.createElement('div');
+    el.className = 'row';
+    el.onclick = ()=> openThinking(item.tk, item.title, 'normal');
+    el.innerHTML = `<div class="row-title">${escapeHtml(item.title)}</div><div class="row-tk">TK/${item.tk}</div><div class="row-arrow">&rarr;</div>`;
+    list.appendChild(el);
+  });
+}
+
+function openMtbModal(){
+  document.getElementById('mtbNum').value = '';
+  document.getElementById('mtbErr').textContent = '';
+  openModal('mtbOverlay');
+}
+
+async function submitMtb(){
+  const tk = document.getElementById('mtbNum').value;
+  const errEl = document.getElementById('mtbErr');
+  if(!/^\d{1,12}$/.test(tk)){ errEl.textContent = 'Numbers only, up to 12 digits.'; return; }
+  closeModal('mtbOverlay');
+  await openThinking(tk, null, 'mtb');
+}
+
+async function openThinking(tk, title, kind){
+  const list = document.getElementById('list');
+  const wrap = document.getElementById('viewerWrap');
+  const pages = document.getElementById('pdfPages');
+  list.style.display = 'none';
+  wrap.classList.add('open');
+  pages.innerHTML = '<div class="loading">Loading...</div>';
+  document.getElementById('viewerTk').textContent = 'TK/' + tk;
+  document.getElementById('viewerTitle').textContent = title || '';
+
+  const res = await fetch('/api/thinkings/stream', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({tk, kind}) });
+  if(!res.ok){ pages.innerHTML = '<div class="loading">No thinking found with that number.</div>'; return; }
+  const buf = await res.arrayBuffer();
+  pages.innerHTML = '';
+
+  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  for(let i=1;i<=pdf.numPages;i++){
+    const page = await pdf.getPage(i);
+    const viewport = page.getViewport({ scale: 1.6 });
+    const canvas = document.createElement('canvas');
+    canvas.width = viewport.width; canvas.height = viewport.height;
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+    pages.appendChild(canvas);
+  }
+
+  // best-effort privacy shield — not a real screenshot block, just a deterrent
+  document.addEventListener('visibilitychange', shieldHandler);
+  window.addEventListener('blur', shieldHandler);
+}
+
+function shieldHandler(){
+  const pages = document.getElementById('pdfPages');
+  if(!pages || !pages.parentElement.classList.contains('open')) return;
+  let shield = document.getElementById('privacyShield');
+  const hidden = document.hidden || !document.hasFocus();
+  if(hidden && !shield){
+    shield = document.createElement('div');
+    shield.id = 'privacyShield'; shield.className = 'privacy-shield';
+    shield.textContent = 'Hidden';
+    pages.appendChild(shield);
+  } else if(!hidden && shield){
+    shield.remove();
+  }
+}
+
+function closeViewer(){
+  document.getElementById('viewerWrap').classList.remove('open');
+  document.getElementById('list').style.display = 'flex';
+  document.removeEventListener('visibilitychange', shieldHandler);
+  window.removeEventListener('blur', shieldHandler);
+}
+
+function escapeHtml(s){ const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+boot();
+</script>
+</body>
+</html>
