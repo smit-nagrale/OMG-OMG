@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smit Nagrale — Thumbnail Design</title>
+<meta name="description" content="Thumbnail design portfolio by Smit Nagrale">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink-1: #081310;
+    --ink-2: #0c1a15;
+    --cream: #EDEAE0;
+    --gold: #C79A56;
+    --gold-dark: #8C6530;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: linear-gradient(180deg, var(--ink-1), var(--ink-2));
+    color: var(--cream);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  header {
+    padding: 56px 24px 32px;
+    text-align: center;
+  }
+
+  header h1 {
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: clamp(28px, 5vw, 42px);
+    color: var(--cream);
+    letter-spacing: 0.3px;
+  }
+
+  header p {
+    margin-top: 10px;
+    color: var(--gold);
+    font-size: 15px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  .x-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 20px;
+    padding: 10px 20px;
+    border: 1px solid var(--gold-dark);
+    border-radius: 999px;
+    color: var(--cream);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    transition: background 0.2s ease, border-color 0.2s ease;
+  }
+
+  .x-link:hover {
+    background: rgba(199, 154, 86, 0.1);
+    border-color: var(--gold);
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    padding: 24px 5vw 80px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .card {
+    background: rgba(237, 234, 224, 0.03);
+    border: 1px solid rgba(199, 154, 86, 0.15);
+    border-radius: 14px;
+    overflow: hidden;
+    transition: transform 0.25s ease, border-color 0.25s ease;
+  }
+
+  .card:hover {
+    transform: translateY(-4px);
+    border-color: var(--gold);
+  }
+
+  .thumb-wrap {
+    width: 100%;
+    max-width: 100%;
+    aspect-ratio: 16 / 9;
+    background: #060d0a;
+    overflow: hidden;
+  }
+
+  .thumb-wrap img {
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .card-title {
+    padding: 14px 16px 16px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--cream);
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    word-break: break-word;
+  }
+
+  footer {
+    text-align: center;
+    padding: 32px 24px 48px;
+    color: rgba(237, 234, 224, 0.4);
+    font-size: 13px;
+  }
+
+  @media (max-width: 900px) {
+    .grid { grid-template-columns: repeat(2, 1fr); gap: 18px; }
+  }
+
+  @media (max-width: 560px) {
+    .grid { grid-template-columns: 1fr; gap: 16px; padding: 20px 6vw 60px; }
+    header { padding: 40px 20px 24px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Thumbnail Design</h1>
+  <p>Portfolio</p>
+  <a class="x-link" href="https://x.com/Smit_Nagrale_" target="_blank" rel="noopener noreferrer">
+    𝕏 &nbsp;@Smit_Nagrale_
+  </a>
+</header>
+
+<div class="grid" id="grid"></div>
+
+<footer>© <span id="year"></span> Smit Nagrale</footer>
+
+<script>
+  // ---- EDIT THIS ARRAY TO ADD/REMOVE THUMBNAILS ----
+  // img: path to your thumbnail image (put images in thumbnails/images/)
+  // title: title shown under the thumbnail
+  const thumbnails = [
+    { img: "images/thumb-1.jpg", title: "Video Title Goes Here" },
+    { img: "images/thumb-2.jpg", title: "Video Title Goes Here" },
+    { img: "images/thumb-3.jpg", title: "Video Title Goes Here" },
+    { img: "images/thumb-4.jpg", title: "Video Title Goes Here" },
+  ];
+  // ---------------------------------------------------
+
+  const grid = document.getElementById('grid');
+  grid.innerHTML = thumbnails.map(t => `
+    <div class="card">
+      <div class="thumb-wrap">
+        <img src="${t.img}" alt="${t.title}" loading="lazy">
+      </div>
+      <div class="card-title">${t.title}</div>
+    </div>
+  `).join('');
+
+  document.getElementById('year').textContent = new Date().getFullYear();
+</script>
+
+</body>
+</html>
