@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Enter Amount</title>
+<style>
+  :root{
+    --ink:#081310; --ink2:#0c1a15; --cream:#EDEAE0; --gold:#C79A56; --green:#3fae6a; --red:#c85a5a;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
+    background:radial-gradient(circle at 50% 30%, var(--ink2), var(--ink));
+    font-family:'Inter',system-ui,sans-serif; color:var(--cream);
+  }
+  .card{width:min(92vw,360px); padding:32px 26px; border-radius:18px;
+    background:rgba(237,234,224,0.03); border:1px solid rgba(199,154,86,0.25); text-align:center;}
+  h1{font-family:'Fraunces',serif; font-size:20px; margin:0 0 22px; color:var(--gold); font-weight:600;}
+  .rupee{font-size:34px; color:var(--gold); margin-bottom:6px;}
+  input{
+    width:100%; padding:14px; font-size:22px; text-align:center; border-radius:10px;
+    border:1px solid rgba(199,154,86,0.35); background:rgba(0,0,0,0.25); color:var(--cream);
+    outline:none; font-family:'Fraunces',serif;
+  }
+  input:focus{border-color:var(--gold);}
+  button{
+    margin-top:16px; width:100%; padding:13px; border:none; border-radius:10px;
+    background:var(--gold); color:var(--ink); font-weight:600; font-size:15px;
+    cursor:pointer; letter-spacing:.02em;
+  }
+  button:disabled{opacity:.5; cursor:not-allowed;}
+  .msg{margin-top:14px; font-size:13px; min-height:18px;}
+  .msg.ok{color:var(--green);}
+  .msg.err{color:var(--red);}
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>Enter Amount</h1>
+    <div class="rupee">₹</div>
+    <input id="amount" type="number" inputmode="decimal" placeholder="0" autofocus>
+    <button id="go">Pay</button>
+    <div class="msg" id="msg"></div>
+  </div>
+
+<script>
+  const params = new URLSearchParams(location.search);
+  const session = params.get("session");
+  const btn = document.getElementById("go");
+  const msg = document.getElementById("msg");
+  const input = document.getElementById("amount");
+
+  async function submit(){
+    const amount = parseFloat(input.value);
+    msg.className = "msg";
+    if(!session){ msg.textContent = "Invalid link."; msg.className="msg err"; return; }
+    if(!amount || amount <= 0){ msg.textContent = "Enter a valid amount."; msg.className="msg err"; return; }
+
+    btn.disabled = true; msg.textContent = "Processing…";
+    try{
+      const r = await fetch("/api/pay", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({session, amount})
+      });
+      if(r.ok){
+        msg.textContent = "Payment sent — check the display."; msg.className = "msg ok";
+        input.disabled = true;
+      } else {
+        const d = await r.json().catch(()=>({}));
+        msg.textContent = d.error || "Something went wrong."; msg.className = "msg err";
+        btn.disabled = false;
+      }
+    }catch(e){
+      msg.textContent = "Network error."; msg.className = "msg err"; btn.disabled = false;
+    }
+  }
+
+  btn.addEventListener("click", submit);
+  input.addEventListener("keydown", e => { if(e.key === "Enter") submit(); });
+</script>
+</body>
+</html>
