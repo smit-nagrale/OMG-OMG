@@ -1,5 +1,5 @@
 // POST /api/pay  { session, amount }
-// Stores { paid:true, amount } in KV under the session key, 10 min TTL.
+// Stores { paid:true, amount } in a Durable Object (instant). Falls back to KV if PAY_DO isn't bound yet.
 export async function onRequestPost({ request, env }) {
   let body;
   try {
@@ -18,11 +18,19 @@ export async function onRequestPost({ request, env }) {
     return json({ error: "Invalid amount" }, 400);
   }
 
-  await env.SESSIONS.put(
-    `pay:${session}`,
-    JSON.stringify({ paid: true, amount: amt, at: Date.now() }),
-    { expirationTtl: 600 }
-  );
+  if (env.PAY_DO) {
+    const stub = env.PAY_DO.get(env.PAY_DO.idFromName(session));
+    await stub.fetch("https://do/pay", {
+      method: "POST",
+      body: JSON.stringify({ amount: amt }),
+    });
+  } else {
+    await env.SESSIONS.put(
+      `pay:${session}`,
+      JSON.stringify({ paid: true, amount: amt, at: Date.now() }),
+      { expirationTtl: 600 }
+    );
+  }
 
   return json({ ok: true });
 }
