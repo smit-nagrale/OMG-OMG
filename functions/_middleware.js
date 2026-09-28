@@ -12,7 +12,7 @@ import { verifySession } from "./utils/session.js";
 // API paths reachable WITHOUT a session. Keep this list as short as possible.
 const PUBLIC_API = ["/api/login", "/api/logout", "/api/pay", "/api/status"];
 // Paths that must never be served.
-const BLOCKED = [/^\/\.git/i, /^\/\.env/i, /^\/functions\//i, /^\/node_modules\//i, /\.(map|bak|old|sql)$/i];
+const BLOCKED = [/^\/pay-do\//i, /^\/\.git/i, /^\/\.env/i, /^\/functions\//i, /^\/node_modules\//i, /\.(map|bak|old|sql)$/i];
 // --------------------------------------------------------------------------
 
 const ALLOWED_METHODS = ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"];
