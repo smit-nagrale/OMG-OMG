@@ -1,13 +1,13 @@
 import { verifySession } from "../utils/session.js";
 
+// Endpoints reachable without a login session
+const PUBLIC = ["/api/login", "/api/logout", "/api/pay", "/api/status"];
+
 export async function onRequest(context) {
   const { request, env, next } = context;
-
   const url = new URL(request.url);
 
-  // Login must stay open — it's how a session gets created in the first
-  // place. Everything else under /api/ requires a valid session.
-  if (url.pathname === "/api/login") {
+  if (PUBLIC.includes(url.pathname)) {
     return next();
   }
 
