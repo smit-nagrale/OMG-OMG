@@ -49,7 +49,7 @@ function json(status, body) {
 function withHeaders(res, noStore) {
   const out = new Response(res.body, res); // makes headers mutable
   const h = out.headers;
-  h.set("Content-Security-Policy", CSP);
+  h.set("Content-Security-Policy-Report-Only", CSP);
   h.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
   h.set("X-Content-Type-Options", "nosniff");
   h.set("X-Frame-Options", "DENY");
