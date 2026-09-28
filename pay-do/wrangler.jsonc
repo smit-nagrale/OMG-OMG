@@ -1,0 +1,9 @@
+{
+  "name": "utopia-pay-do",
+  "main": "src/index.js",
+  "compatibility_date": "2026-09-01",
+  "durable_objects": {
+    "bindings": [{ "name": "PAY_DO", "class_name": "PaySession" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["PaySession"] }]
+}
