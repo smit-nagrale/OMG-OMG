@@ -7,9 +7,14 @@ export async function onRequestGet({ request, env }) {
     return json({ error: "Invalid session" }, 400);
   }
 
+  if (env.PAY_DO) {
+    const stub = env.PAY_DO.get(env.PAY_DO.idFromName(session));
+    const res = await stub.fetch("https://do/status");
+    return json(await res.json());
+  }
+
   const raw = await env.SESSIONS.get(`pay:${session}`);
   if (!raw) return json({ paid: false });
-
   try {
     const data = JSON.parse(raw);
     return json({ paid: !!data.paid, amount: data.amount });
