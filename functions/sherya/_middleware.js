@@ -78,7 +78,7 @@ async function handleLogin(request, env, url) {
     return loginPage("Wrong password.");
   }
 
-  if (!(await safeEqual(input, env.SHERYA_PASSWORD))) {
+  if (!(await safeEqual(input.trim(), String(env.SHERYA_PASSWORD).trim()))) {
     await env.ATTEMPTS.put(failKey, String(fails + 1), { expirationTtl: LOCK_SECONDS });
     await new Promise((r) => setTimeout(r, 800)); // slow down guessing
     return loginPage("Wrong password.");
