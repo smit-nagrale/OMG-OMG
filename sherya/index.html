@@ -1,0 +1,302 @@
+<!doctype html>
+  <html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="robots" content="noindex,nofollow">
+    <title>Sherya</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+      :root {
+        --bg: #081310;
+        --bg-light: #0c1a15;
+        --text: #EDEAE0;
+        --accent: #C79A56;
+        --accent-dark: #8C6530;
+      }
+
+      body {
+        margin: 0; padding: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: 'Inter', system-ui, sans-serif;
+        height: 100vh;
+        overflow: hidden;
+      }
+
+      .main-photo {
+        position: fixed;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        object-fit: cover;
+        z-index: -1;
+        filter: brightness(0.7);
+      }
+
+      .profile-header {
+        position: absolute;
+        top: 20px; left: 20px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        cursor: pointer;
+        z-index: 10;
+      }
+
+      .avatar {
+        width: 48px; height: 48px;
+        border-radius: 50%;
+        border: 2px solid var(--accent);
+        object-fit: cover;
+        background: var(--bg-light);
+      }
+
+      .user-name {
+        font-family: 'Fraunces', serif;
+        font-weight: 700;
+        font-size: 1.2rem;
+        color: #FFFFFF;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+      }
+
+      .timer-container {
+        position: absolute;
+        top: 20px; right: 20px;
+        background: rgba(12, 26, 21, 0.85);
+        backdrop-filter: blur(10px);
+        border: 1px solid var(--accent);
+        color: var(--text);
+        padding: 6px 16px;
+        border-radius: 20px 20px 4px 4px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-variant-numeric: tabular-nums;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+        z-index: 10;
+      }
+
+      .timer-btn {
+        background: none; border: none;
+        color: var(--accent);
+        font-size: 1.4rem;
+        cursor: pointer;
+        padding: 0 4px;
+        font-weight: bold;
+      }
+
+      .timer-display {
+        font-weight: 600;
+        font-size: 1rem;
+        min-width: 50px;
+        text-align: center;
+      }
+
+      .start-stop-btn {
+        background: var(--accent);
+        color: var(--bg);
+        border: none;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-weight: 700;
+        font-size: 0.8rem;
+        cursor: pointer;
+        text-transform: uppercase;
+      }
+      .start-stop-btn.stop { background: #e0776b; }
+
+      /* Edit Profile Modal */
+      #edit-modal {
+        display: none;
+        position: fixed;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        background: rgba(0,0,0,0.8);
+        backdrop-filter: blur(5px);
+        z-index: 100;
+        place-items: center;
+      }
+
+      .modal-content {
+        background: var(--bg-light);
+        border: 1px solid var(--accent);
+        padding: 24px;
+        border-radius: 20px;
+        width: min(320px, 90vw);
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .modal-content h2 {
+        margin: 0;
+        font-family: 'Fraunces', serif;
+        color: var(--accent);
+        text-align: center;
+      }
+
+      .field {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .field label { font-size: 0.8rem; color: #aaa; }
+
+      .field input {
+        padding: 10px;
+        background: var(--bg);
+        border: 1px solid #2a3a33;
+        color: var(--text);
+        border-radius: 8px;
+        font-family: 'Inter', sans-serif;
+      }
+
+      .modal-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 10px;
+      }
+
+      .btn {
+        flex: 1;
+        padding: 10px;
+        border-radius: 8px;
+        border: none;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .btn-save { background: var(--accent); color: var(--bg); }
+      .btn-cancel { background: #333; color: var(--text); }
+
+      #photo-upload { display: none; }
+    </style>
+  </head>
+  <body onload="loadProfile()">
+
+    <!-- Background image is now static (via GitHub) -->
+    <img src="bg.jpg" alt="background" class="main-photo">
+
+    <div class="profile-header" onclick="openEdit()">
+      <img src="" alt="avatar" class="avatar" id="user-avatar">
+      <span class="user-name" id="display-name">Loading...</span>
+    </div>
+
+    <div class="timer-container">
+      <button class="timer-btn" onclick="adjustTimer(-1)">−</button>
+      <div class="timer-display" id="timer">00:00</div>
+      <button class="timer-btn" onclick="adjustTimer(1)">+</button>
+      <button class="start-stop-btn" id="action-btn" onclick="toggleTimer()">Start</button>
+    </div>
+
+    <!-- Edit Profile Modal -->
+    <div id="edit-modal">
+      <div class="modal-content">
+        <h2>Edit Profile</h2>
+
+        <div class="field">
+          <label>Name</label>
+          <input type="text" id="edit-name" placeholder="Your Name">
+        </div>
+
+        <div class="field">
+          <label>Profile Picture</label>
+          <button class="btn" style="background:#2a3a33; color:var(--text)" onclick="document.getElementById('photo-upload').click()">Choose Photo</button>
+        </div>
+
+        <div class="modal-actions">
+          <button class="btn btn-cancel" onclick="closeEdit()">Cancel</button>
+          <button class="btn btn-save" onclick="saveProfile()">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <input type="file" id="photo-upload" accept="image/*" onchange="handleFile(this)">
+
+    <script>
+      let totalSeconds = 0;
+      let timerInterval = null;
+      let currentAvatarBase64 = "";
+
+      const timerEl = document.getElementById('timer');
+      const actionBtn = document.getElementById('action-btn');
+
+      async function loadProfile() {
+        try {
+          const res = await fetch('/sherya/api/profile');
+          const data = await res.json();
+          if (data.ok) {
+            document.getElementById('display-name').textContent = data.name || "Sherya";
+            document.getElementById('edit-name').value = data.name || "Sherya";
+            document.getElementById('user-avatar').src = data.avatar || "https://via.placeholder.com/48";
+            currentAvatarBase64 = data.avatar || "";
+          }
+        } catch (e) { console.error(e); }
+      }
+
+      function openEdit() { document.getElementById('edit-modal').style.display = 'grid'; }
+      function closeEdit() { document.getElementById('edit-modal').style.display = 'none'; }
+
+      function handleFile(input) {
+        if (input.files && input.files[0]) {
+          const reader = new FileReader();
+          reader.onload = (e) => { currentAvatarBase64 = e.target.result; };
+          reader.readAsDataURL(input.files[0]);
+        }
+      }
+
+      async function saveProfile() {
+        const name = document.getElementById('edit-name').value;
+        await fetch('/sherya/api/profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: name, avatar: currentAvatarBase64 })
+        });
+
+        document.getElementById('display-name').textContent = name;
+        document.getElementById('user-avatar').src = currentAvatarBase64;
+        closeEdit();
+      }
+
+      function updateDisplay() {
+        const mins = Math.floor(totalSeconds / 60);
+        const secs = totalSeconds % 60;
+        timerEl.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+      }
+
+      function adjustTimer(mins) {
+        totalSeconds += mins * 60;
+        if (totalSeconds < 0) totalSeconds = 0;
+        updateDisplay();
+      }
+
+      function toggleTimer() {
+        if (timerInterval) {
+          clearInterval(timerInterval);
+          timerInterval = null;
+          actionBtn.textContent = 'Start';
+          actionBtn.classList.remove('stop');
+        } else {
+          if (totalSeconds <= 0) return alert("Set a time first!");
+          actionBtn.textContent = 'Stop';
+          actionBtn.classList.add('stop');
+          timerInterval = setInterval(() => {
+            totalSeconds--;
+            updateDisplay();
+            if (totalSeconds <= 0) {
+              clearInterval(timerInterval);
+              timerInterval = null;
+              actionBtn.textContent = 'Start';
+              actionBtn.classList.remove('stop');
+              alert("Timer Completed!");
+            }
+          }, 1000);
+        }
+      }
+
+      updateDisplay();
+    </script>
+  </body>
+  </html>
