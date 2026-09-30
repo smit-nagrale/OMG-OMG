@@ -240,12 +240,21 @@
       function closeEdit() { document.getElementById('edit-modal').style.display = 'none'; }
 
       function handleFile(input) {
-        if (input.files && input.files[0]) {
-          const reader = new FileReader();
-          reader.onload = (e) => { currentAvatarBase64 = e.target.result; };
-          reader.readAsDataURL(input.files[0]);
-        }
-      }
+  const file = input.files && input.files[0];
+  if (!file) return;
+  const img = new Image();
+  img.onload = () => {
+    const s = 256, c = document.createElement('canvas');
+    c.width = c.height = s;
+    const r = Math.max(s / img.width, s / img.height);
+    const w = img.width * r, h = img.height * r;
+    c.getContext('2d').drawImage(img, (s - w) / 2, (s - h) / 2, w, h);
+    currentAvatarBase64 = c.toDataURL('image/jpeg', 0.85);
+    document.getElementById('user-avatar').src = currentAvatarBase64;
+    URL.revokeObjectURL(img.src);
+  };
+  img.src = URL.createObjectURL(file);
+}
 
       async function saveProfile() {
         const name = document.getElementById('edit-name').value;
