@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Saturday Test</title>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;1,9..144,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
   :root{
     --ink:#081310; --ink-2:#0c1a15; --line:#25392c;
@@ -26,15 +27,103 @@
 
   .panel{
     background:var(--ink-2); border:1px solid var(--line); border-radius:12px;
-    padding:22px clamp(14px,3vw,26px); max-width:960px; margin-bottom:22px;
+    padding:22px clamp(14px,3vw,26px); max-width:960px; margin-bottom:22px; min-width:0;
   }
-  .panel canvas{ width:100%; display:block; }
+  .panel canvas{ width:100%; max-width:100%; display:block; }
 
   .small-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:16px; max-width:960px; margin-bottom:36px; }
   .small-grid .panel{ margin-bottom:0; padding:16px 18px; }
   .small-grid h2{ font-size:15px; }
 
   .empty{ color:var(--dim); font-size:14px; padding:20px 0; }
+
+  /* ---- charts + detail box layout ---- */
+  .charts-row{ display:flex; gap:22px; align-items:flex-start; max-width:1270px; }
+  .charts-col{ flex:1 1 0; min-width:0; max-width:960px; }
+
+  .chart-wrap{ position:relative; min-width:0; }
+
+  /* hover box. The outer element has transparent padding so the mouse can
+     travel from the point onto the box without it vanishing. */
+  .tip{ position:absolute; left:0; top:0; z-index:5; padding:8px; display:none; cursor:pointer; }
+  .tip.show{ display:block; }
+  .tip-box{
+    background:#0a1612; border:1px solid var(--gold-dim); border-radius:8px;
+    padding:8px 12px; font-size:12px; line-height:1.6; white-space:nowrap;
+    font-variant-numeric:tabular-nums; box-shadow:0 6px 18px rgba(0,0,0,.45);
+  }
+  .tip-head{ font-weight:500; margin-bottom:2px; }
+  .tip-id{ color:var(--text); margin-right:10px; }
+  .tip-row b{ color:var(--dim); font-weight:500; }
+
+  /* detail box: beside the graphs on wide screens */
+  .detail{
+    flex:0 0 272px; position:sticky; top:24px;
+    background:var(--ink-2); border:1px solid var(--line); border-radius:12px;
+    padding:18px 18px 16px; font-variant-numeric:tabular-nums;
+    max-height:calc(100vh - 48px); overflow-y:auto;
+  }
+  .detail[hidden]{ display:none; }
+  .detail .x{
+    position:absolute; top:8px; right:10px; background:none; border:none;
+    color:var(--dim); font-size:22px; line-height:1; cursor:pointer; padding:2px 6px;
+  }
+  .detail .x:hover{ color:var(--red); }
+  .d-head{ font-family:'Fraunces',serif; font-size:19px; font-weight:500; padding-right:26px; margin-bottom:12px; }
+  .d-date{ display:block; font-family:'Inter',sans-serif; font-size:12px; color:var(--dim); margin-top:2px; font-weight:400; }
+  table.d-table{ min-width:0; margin-top:0; font-size:13px; }
+  .d-table th{ padding:6px 6px; text-align:right; }
+  .d-table th:first-child, .d-table td:first-child{ text-align:left; }
+  .d-table td{ padding:7px 6px; text-align:right; }
+  .d-table td:first-child{ color:var(--dim); }
+  .d-table tr.sum td{ border-top:1px solid var(--gold-dim); border-bottom:none; font-weight:500; }
+
+  /* narrower screens: the detail box becomes a card pinned to the bottom */
+  @media (max-width:1380px){
+    .detail{
+      position:fixed; left:12px; right:12px; bottom:12px; top:auto;
+      flex:none; max-width:400px; margin:0 auto; z-index:60; max-height:82vh;
+      box-shadow:0 10px 30px rgba(0,0,0,.6);
+    }
+  }
+
+  /* ---- PDF previews under the detail box ---- */
+  .thumbs{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:16px; }
+  .thumbs[hidden]{ display:none; }
+  .thumb{
+    display:block; width:100%; min-height:120px; padding:0; overflow:hidden;
+    background:var(--ink); border:1px solid var(--line); border-radius:6px;
+    cursor:zoom-in; position:relative; transition:border-color .2s ease;
+  }
+  .thumb:hover{ border-color:var(--gold-dim); }
+  .thumb:focus-visible, .lb-btn:focus-visible{ outline:2px solid var(--gold); outline-offset:2px; }
+  .thumb canvas{ display:block; width:100%; height:auto; }
+  .thumb.failed{ cursor:default; }
+  .thumb.failed::after{ content:'Unavailable'; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:var(--dim); font-size:11px; }
+
+  /* ---- full-screen reader ---- */
+  .lb{
+    position:fixed; inset:0; z-index:100;
+    background:rgba(3,8,6,.72);
+    -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px);
+  }
+  .lb[hidden]{ display:none; }
+  .lb-bar{
+    position:absolute; top:0; left:0; right:0; z-index:2; display:flex; justify-content:flex-end; gap:10px;
+    padding:14px clamp(14px,3vw,28px); pointer-events:none;
+  }
+  .lb-btn{
+    pointer-events:auto; width:40px; height:40px; border-radius:50%;
+    background:rgba(12,26,21,.92); border:1px solid var(--line); color:var(--text);
+    display:flex; align-items:center; justify-content:center; cursor:pointer; text-decoration:none;
+    transition:all .2s ease;
+  }
+  .lb-btn:hover{ border-color:var(--gold-dim); color:var(--gold); }
+  .lb-btn svg{ width:18px; height:18px; display:block; }
+  .lb-scroll{ position:absolute; inset:0; overflow-y:auto; padding:68px 14px 40px; -webkit-overflow-scrolling:touch; }
+  .lb-pages{ max-width:900px; margin:0 auto; display:flex; flex-direction:column; gap:14px; }
+  .lb-pages canvas{ display:block; width:100%; height:auto; background:#fff; border-radius:3px; box-shadow:0 8px 30px rgba(0,0,0,.5); }
+  .lb-msg{ color:var(--dim); font-size:14px; text-align:center; padding:60px 0; }
 
   /* ---- entry form ---- */
   .form-title{ font-family:'Fraunces',serif; font-weight:500; font-size:22px; margin:50px 0 18px; }
@@ -46,9 +135,8 @@
   .field{ display:flex; flex-direction:column; gap:6px; }
   .field label{ font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--dim); }
 
-  /* Themed inputs — applies to every input in the form, including the
-     subject correct/wrong pairs, so nothing renders as a browser-default
-     white box. */
+  /* Themed inputs — applies to every input in the form so nothing renders
+     as a browser-default white box. */
   form.entry input{
     width:100%;
     background:var(--ink); border:1px solid var(--line); border-radius:8px;
@@ -60,14 +148,20 @@
   form.entry input:focus{ border-color:var(--gold-dim); }
 
   .subj-group{
-    grid-column:1 / -1; display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+    grid-column:1 / -1; display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
     gap:16px; padding-top:16px; margin-top:2px; border-top:1px solid var(--line);
   }
   .subj{ display:flex; flex-direction:column; gap:8px; }
   .subj-name{ font-family:'Fraunces',serif; font-size:14px; color:var(--gold-dim); }
-  .subj-fields{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
-  .subj-fields .field{ gap:4px; }
-  .subj-fields .field label{ font-size:9px; }
+  .subj .field{ gap:4px; }
+  .subj .field label{ font-size:9px; }
+
+  .file-group{ grid-column:1 / -1; display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:16px; }
+  form.entry input[type=file]{ padding:7px 10px; font-size:12px; color:var(--dim); }
+  form.entry input[type=file]::file-selector-button{
+    background:none; border:1px solid var(--gold-dim); color:var(--gold-dim); border-radius:6px;
+    padding:4px 10px; margin-right:10px; cursor:pointer; font-family:'Inter',sans-serif; font-size:12px;
+  }
 
   .form-actions{ grid-column:1 / -1; display:flex; justify-content:flex-end; padding-top:6px; }
   .form-actions button{
@@ -85,12 +179,11 @@
     .form-actions button{ width:100%; }
   }
 
-  /* ---- table ---- */
+  /* ---- history table ---- */
   .table-wrap{ max-width:960px; overflow-x:auto; -webkit-overflow-scrolling:touch; }
-  table{ width:100%; min-width:560px; border-collapse:collapse; font-size:13px; margin-top:26px; }
+  table{ width:100%; min-width:620px; border-collapse:collapse; font-size:13px; margin-top:26px; }
   th{ text-align:left; color:var(--dim); font-weight:400; letter-spacing:.05em; text-transform:uppercase; font-size:10px; padding:10px 12px; border-bottom:1px solid var(--line); }
-  td{ padding:11px 12px; border-bottom:1px solid var(--line); white-space:nowrap; }
-  td.pct{ color:var(--gold); }
+  td{ padding:11px 12px; border-bottom:1px solid var(--line); white-space:nowrap; font-variant-numeric:tabular-nums; }
   .del-btn{ background:none; border:none; color:var(--dim); cursor:pointer; font-size:14px; }
   .del-btn:hover{ color:var(--red); }
 </style>
@@ -98,32 +191,52 @@
 <body>
 <a class="key" href="/utopia/">&larr; hub</a>
 <h1>Saturday Test</h1>
-<div class="subhead">Physics · Chemistry · Biology — weekly, +4 / −1 marking</div>
+<div class="subhead">Physics · Chemistry · Biology — weekly, 4 marks per question</div>
 
-<div class="panel">
-  <h2>Overall performance</h2>
-  <div class="chart-sub">Total % across all tests</div>
-  <canvas id="overallChart" height="260"></canvas>
-  <div class="empty" id="overallEmpty" style="display:none;">No tests logged yet — add one below.</div>
-</div>
+<div class="charts-row">
+  <div class="charts-col">
+    <div class="panel">
+      <h2>Overall performance</h2>
+      <div class="chart-sub">Total % across all tests</div>
+      <div class="chart-wrap"><canvas id="overallChart" height="260"></canvas></div>
+      <div class="empty" id="overallEmpty" style="display:none;">No tests logged yet — add one below.</div>
+    </div>
 
-<div class="small-grid">
-  <div class="panel">
-    <h2>Physics</h2>
-    <canvas id="physicsChart" height="140"></canvas>
+    <div class="small-grid">
+      <div class="panel">
+        <h2>Physics</h2>
+        <div class="chart-wrap"><canvas id="physicsChart" height="140"></canvas></div>
+      </div>
+      <div class="panel">
+        <h2>Chemistry</h2>
+        <div class="chart-wrap"><canvas id="chemistryChart" height="140"></canvas></div>
+      </div>
+      <div class="panel">
+        <h2>Biology</h2>
+        <div class="chart-wrap"><canvas id="biologyChart" height="140"></canvas></div>
+      </div>
+    </div>
   </div>
-  <div class="panel">
-    <h2>Chemistry</h2>
-    <canvas id="chemistryChart" height="140"></canvas>
-  </div>
-  <div class="panel">
-    <h2>Biology</h2>
-    <canvas id="biologyChart" height="140"></canvas>
-  </div>
+
+  <aside class="detail" id="detail" hidden>
+    <button class="x" id="detailClose" type="button" aria-label="Close details">&times;</button>
+    <div class="d-head"><span id="dId"></span><span class="d-date" id="dDate"></span></div>
+    <table class="d-table">
+      <thead>
+        <tr><th></th><th>+</th><th>&minus;</th><th>Total</th></tr>
+      </thead>
+      <tbody id="dBody"></tbody>
+    </table>
+    <div class="thumbs" id="thumbs" hidden></div>
+  </aside>
 </div>
 
 <div class="form-title">Log a test</div>
 <form class="entry" id="entryForm">
+  <div class="field">
+    <label>Test ID</label>
+    <input type="text" id="fTestId" inputmode="numeric" pattern="\d{3}" maxlength="3" placeholder="009" autocomplete="off" required>
+  </div>
   <div class="field">
     <label>Date</label>
     <input type="date" id="fDate" required>
@@ -136,42 +249,35 @@
   <div class="subj-group">
     <div class="subj">
       <div class="subj-name">Physics</div>
-      <div class="subj-fields">
-        <div class="field">
-          <label>Correct</label>
-          <input type="number" min="0" step="1" id="pCorrect" required>
-        </div>
-        <div class="field">
-          <label>Wrong</label>
-          <input type="number" min="0" step="1" id="pWrong" required>
-        </div>
+      <div class="field">
+        <label>Marks</label>
+        <input type="number" min="0" step="4" id="pMarks" required>
       </div>
     </div>
     <div class="subj">
       <div class="subj-name">Chemistry</div>
-      <div class="subj-fields">
-        <div class="field">
-          <label>Correct</label>
-          <input type="number" min="0" step="1" id="cCorrect" required>
-        </div>
-        <div class="field">
-          <label>Wrong</label>
-          <input type="number" min="0" step="1" id="cWrong" required>
-        </div>
+      <div class="field">
+        <label>Marks</label>
+        <input type="number" min="0" step="4" id="cMarks" required>
       </div>
     </div>
     <div class="subj">
       <div class="subj-name">Biology</div>
-      <div class="subj-fields">
-        <div class="field">
-          <label>Correct</label>
-          <input type="number" min="0" step="1" id="bCorrect" required>
-        </div>
-        <div class="field">
-          <label>Wrong</label>
-          <input type="number" min="0" step="1" id="bWrong" required>
-        </div>
+      <div class="field">
+        <label>Marks</label>
+        <input type="number" min="0" step="4" id="bMarks" required>
       </div>
+    </div>
+  </div>
+
+  <div class="file-group">
+    <div class="field">
+      <label>Question paper PDF (optional)</label>
+      <input type="file" id="fQFile" accept="application/pdf,.pdf">
+    </div>
+    <div class="field">
+      <label>Answer sheet PDF (optional)</label>
+      <input type="file" id="fRFile" accept="application/pdf,.pdf">
     </div>
   </div>
 
@@ -185,7 +291,7 @@
 <table id="scoreTable" style="display:none;">
   <thead>
     <tr>
-      <th>Date</th><th>Physics</th><th>Chemistry</th><th>Biology</th>
+      <th>ID</th><th>Date</th><th>Physics</th><th>Chemistry</th><th>Biology</th>
       <th>Total</th><th>%</th><th></th>
     </tr>
   </thead>
@@ -194,74 +300,136 @@
 </div>
 <div class="empty" id="tableEmpty">No entries yet.</div>
 
+<div class="lb" id="lb" hidden role="dialog" aria-modal="true" aria-label="Test paper">
+  <div class="lb-bar">
+    <a class="lb-btn" id="lbDownload" download title="Download" aria-label="Download PDF">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12"/><path d="M7 11l5 5 5-5"/><path d="M5 20h14"/></svg>
+    </a>
+    <button class="lb-btn" id="lbClose" type="button" title="Close" aria-label="Close">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12"/><path d="M18 6L6 18"/></svg>
+    </button>
+  </div>
+  <div class="lb-scroll" id="lbScroll"><div class="lb-pages" id="lbPages"></div></div>
+</div>
+
 <script>
+  // ---------------------------------------------------------------------
+  // EDIT THIS: questions per subject in one full paper. Only used to work
+  // out the "−" (missed) and "Total" columns in the detail box. If a test's
+  // Max Marks is different, these are scaled to match.
+  const SUBJECT_QS = { physics: 45, chemistry: 45, biology: 90 };
+  // ---------------------------------------------------------------------
+  const SUBJECT_QS_SUM = SUBJECT_QS.physics + SUBJECT_QS.chemistry + SUBJECT_QS.biology;
+  const SUBJECTS = [
+    { key: 'physics',   letter: 'P' },
+    { key: 'chemistry', letter: 'C' },
+    { key: 'biology',   letter: 'B' },
+  ];
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
   let entries = [];
+  let selKey = null;     // date of the clicked point (red glow + crosshair)
+  let detailKey = null;  // date shown in the detail box
 
-  async function loadEntries(){
-    try{
-      const res = await fetch('/api/scores');
-      const data = await res.json();
-      entries = (data.entries || []).sort((a,b)=> a.date.localeCompare(b.date));
-    } catch(e){
-      entries = [];
-    }
-    renderAll();
+  // ---- small helpers ----
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(Math.max(lo, hi), v));
+
+  function qsOf(e, key){ return Number(e[key].correct) || 0; }                 // questions scored
+  function totalQs(e){ return SUBJECTS.reduce((s, x) => s + qsOf(e, x.key), 0); }
+  function subjMaxQ(e, key){ return Math.round(SUBJECT_QS[key] * (e.maxMarks / 4) / SUBJECT_QS_SUM); }
+  function subjPct(e, key){
+    const m = subjMaxQ(e, key) * 4;
+    return m ? (e[key].score / m) * 100 : 0;
+  }
+  function idText(e){ return e.testId || '—'; }
+  function fmtDate(d){
+    const p = d.split('-');
+    return parseInt(p[2], 10) + ' ' + MONTHS[parseInt(p[1], 10) - 1] + ' ' + p[0];
+  }
+  // bright red (0%) -> yellow (50%) -> green (100%)
+  function heat(pct){
+    const p = Math.max(0, Math.min(100, Number(pct) || 0));
+    return 'hsl(' + Math.round(p * 1.2) + ' 95% 55%)';
   }
 
-  function renderAll(){
-    drawOverall();
-    drawSubject('physicsChart', entries.map(e => ({ date:e.date, pct: (e.physics.score / e.maxMarks) * 100 })));
-    drawSubject('chemistryChart', entries.map(e => ({ date:e.date, pct: (e.chemistry.score / e.maxMarks) * 100 })));
-    drawSubject('biologyChart', entries.map(e => ({ date:e.date, pct: (e.biology.score / e.maxMarks) * 100 })));
-    renderTable();
-  }
+  // ---- charts ----
+  const CHARTS = [
+    { id: 'overallChart',   height: 260, overall: true, pct: e => e.totalPercent },
+    { id: 'physicsChart',   height: 140, pct: e => subjPct(e, 'physics') },
+    { id: 'chemistryChart', height: 140, pct: e => subjPct(e, 'chemistry') },
+    { id: 'biologyChart',   height: 140, pct: e => subjPct(e, 'biology') },
+  ];
+  const charts = CHARTS.map(def => {
+    const canvas = document.getElementById(def.id);
+    const wrap = canvas.parentElement;
+    const tip = document.createElement('div');
+    tip.className = 'tip';
+    wrap.appendChild(tip);
+    return { def, canvas, wrap, tip, geom: { pts: [], W: 0, H: 0 }, hoverIdx: null, hideTimer: null };
+  });
 
-  // ---- canvas line chart helpers ----
-  function setupCanvas(canvas){
-    const dpr = window.devicePixelRatio || 1;
-    const cssWidth = canvas.parentElement.clientWidth - (parseFloat(getComputedStyle(canvas.parentElement).paddingLeft) * 2 || 0);
-    const cssHeight = canvas.height; // uses the html height attr as css px target
-    canvas.width = Math.max(1, canvas.clientWidth || cssWidth) * dpr;
-    canvas.height = (canvas.getAttribute('data-h') || canvas.height) * dpr;
-    const ctx = canvas.getContext('2d');
-    ctx.scale(dpr, dpr);
-    return ctx;
-  }
-
-  function lineColor(name, values){
-    if(name !== 'overallChart' || values.length < 2) return '#C79A56';
-    const first = values[0], last = values[values.length-1];
+  function lineColor(overall, values){
+    if(!overall || values.length < 2) return '#C79A56';
+    const first = values[0], last = values[values.length - 1];
     if(last > first) return '#4A9B6E';
     if(last < first) return '#B85C5C';
     return '#C79A56';
   }
 
-  function drawLineChart(canvasId, points, opts){
-    opts = opts || {};
-    const canvas = document.getElementById(canvasId);
-    const targetH = opts.height || 260;
-    canvas.setAttribute('data-h', targetH);
-    canvas.style.height = targetH + 'px';
+  // Month labels for the x scale. Returns [] (no labels at all) the moment
+  // any two neighbouring labels would sit too close together.
+  function monthRects(ctx, pts, W){
+    ctx.font = '9px Inter, sans-serif';
+    const MIN_GAP = 14;
+    const rects = [];
+    let lastKey = '';
+    pts.forEach(p => {
+      const key = p.e.date.slice(0, 7);
+      if(key === lastKey) return;
+      lastKey = key;
+      const text = MONTHS[parseInt(key.slice(5), 10) - 1];
+      const w = ctx.measureText(text).width;
+      const left = clamp(p.x - w / 2, 2, W - 2 - w);
+      rects.push({ text, left, right: left + w });
+    });
+    for(let i = 1; i < rects.length; i++){
+      if(rects[i].left - rects[i - 1].right < MIN_GAP) return [];
+    }
+    return rects;
+  }
+
+  function fillBox(ctx, x, y, w, h){
+    ctx.beginPath();
+    if(ctx.roundRect) ctx.roundRect(x, y, w, h, 3); else ctx.rect(x, y, w, h);
+    ctx.fill();
+  }
+
+  function drawChart(c){
+    const def = c.def, canvas = c.canvas, H = def.height;
     const dpr = window.devicePixelRatio || 1;
-    const w = canvas.clientWidth || canvas.parentElement.clientWidth;
-    canvas.width = w * dpr;
-    canvas.height = targetH * dpr;
+    const W = Math.max(1, c.wrap.clientWidth);
+    canvas.style.height = H + 'px';
+    canvas.width = Math.round(W * dpr);
+    canvas.height = Math.round(H * dpr);
     const ctx = canvas.getContext('2d');
-    ctx.setTransform(1,0,0,1,0,0);
-    ctx.scale(dpr, dpr);
-    ctx.clearRect(0,0,w,targetH);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
 
-    const padL = 34, padR = 12, padT = 14, padB = 24;
-    const plotW = w - padL - padR;
-    const plotH = targetH - padT - padB;
+    const padL = 42, padR = 14, padT = 14, padB = 26;
+    const plotW = W - padL - padR;
+    const plotH = H - padT - padB;
+    const n = entries.length;
+    const xFor = i => n === 1 ? padL + plotW / 2 : padL + (plotW * i) / (n - 1);
+    const yFor = v => padT + plotH * (1 - Math.max(0, Math.min(100, v)) / 100);
 
-    // gridlines + y labels (0/50/100)
+    // gridlines + y labels
     ctx.strokeStyle = '#25392c';
     ctx.lineWidth = 1;
     ctx.fillStyle = '#7E9284';
     ctx.font = '10px Inter, sans-serif';
-    [0, 50, 100].forEach(v=>{
-      const y = padT + plotH * (1 - v/100);
+    [0, 50, 100].forEach(v => {
+      const y = padT + plotH * (1 - v / 100);
       ctx.beginPath();
       ctx.moveTo(padL, y);
       ctx.lineTo(padL + plotW, y);
@@ -269,57 +437,354 @@
       ctx.fillText(v + '%', 2, y + 3);
     });
 
-    if(points.length === 0) return;
+    const pts = entries.map((e, i) => {
+      const pct = def.pct(e);
+      return { e, pct, x: xFor(i), y: yFor(pct) };
+    });
+    c.geom = { W, H, padL, padT, plotW, plotH, pts };
+    if(!n) return;
 
-    const vals = points.map(p => p.pct);
-    const n = points.length;
-    const xFor = i => n === 1 ? padL + plotW/2 : padL + (plotW * i) / (n - 1);
-    const yFor = v => padT + plotH * (1 - Math.max(0, Math.min(100, v)) / 100);
-
-    const color = lineColor(canvasId, vals);
+    // month scale (all or nothing)
+    ctx.fillStyle = '#7E9284';
+    ctx.font = '9px Inter, sans-serif';
+    ctx.textAlign = 'left';
+    monthRects(ctx, pts, W).forEach(r => ctx.fillText(r.text, r.left, H - 8));
 
     // line
+    const color = lineColor(def.overall, pts.map(p => p.pct));
     ctx.strokeStyle = color;
     ctx.lineWidth = 2;
     ctx.beginPath();
-    points.forEach((p,i)=>{
-      const x = xFor(i), y = yFor(p.pct);
-      if(i === 0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
-    });
+    pts.forEach((p, i) => { if(i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
     ctx.stroke();
 
     // points
     ctx.fillStyle = color;
-    points.forEach((p,i)=>{
-      const x = xFor(i), y = yFor(p.pct);
+    pts.forEach(p => {
       ctx.beginPath();
-      ctx.arc(x, y, 3, 0, Math.PI*2);
+      ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
       ctx.fill();
     });
 
-    // x labels: first, last, and a middle one if room
-    ctx.fillStyle = '#7E9284';
-    ctx.font = '9px Inter, sans-serif';
-    const labelIdx = n <= 6 ? points.map((_,i)=>i) : [0, Math.floor((n-1)/2), n-1];
-    labelIdx.forEach(i=>{
-      const short = points[i].date.slice(5); // MM-DD
-      const x = xFor(i);
-      ctx.textAlign = i === 0 ? 'left' : (i === n-1 ? 'right' : 'center');
-      ctx.fillText(short, x, targetH - 6);
+    // hovered point: slightly bigger with a light ring
+    const selIdx = selKey ? pts.findIndex(p => p.e.date === selKey) : -1;
+    if(c.hoverIdx !== null && c.hoverIdx !== selIdx && pts[c.hoverIdx]){
+      const h = pts[c.hoverIdx];
+      ctx.fillStyle = color;
+      ctx.strokeStyle = '#EDEAE0';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(h.x, h.y, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
+
+    // clicked point: dotted crosshair, scale labels, red glow
+    if(selIdx >= 0){
+      const p = pts[selIdx];
+
+      ctx.save();
+      ctx.setLineDash([3, 4]);
+      ctx.strokeStyle = 'rgba(255,90,90,.8)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();                       // down to the date scale
+      ctx.moveTo(p.x, p.y);
+      ctx.lineTo(p.x, padT + plotH);
+      ctx.stroke();
+      ctx.beginPath();                       // across to the % scale
+      ctx.moveTo(p.x, p.y);
+      ctx.lineTo(padL, p.y);
+      ctx.stroke();
+      ctx.restore();
+
+      ctx.save();
+      ctx.font = '10px Inter, sans-serif';
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'center';
+      // date label on the bottom scale
+      const dText = fmtDate(p.e.date);
+      const dW = ctx.measureText(dText).width + 12, dH = 16;
+      const dX = clamp(p.x - dW / 2, 1, W - dW - 1), dY = padT + plotH + 3;
+      ctx.fillStyle = '#EDEAE0';
+      fillBox(ctx, dX, dY, dW, dH);
+      ctx.fillStyle = '#081310';
+      ctx.fillText(dText, dX + dW / 2, dY + dH / 2 + 0.5);
+      // % label on the left scale
+      const pText = p.pct.toFixed(1) + '%';
+      const pW = padL - 3, pH = 16;
+      const pY = clamp(p.y - pH / 2, 0, H - pH);
+      ctx.fillStyle = '#EDEAE0';
+      fillBox(ctx, 1, pY, pW, pH);
+      ctx.fillStyle = '#081310';
+      ctx.fillText(pText, 1 + pW / 2, pY + pH / 2 + 0.5);
+      ctx.restore();
+
+      ctx.save();
+      ctx.shadowColor = 'rgba(255,60,60,.75)';
+      ctx.shadowBlur = 10;
+      ctx.fillStyle = '#FF4D4D';
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 4.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  function redrawAll(){ charts.forEach(drawChart); }
+
+  // ---- hover box ----
+  function tipHtml(e){
+    const col = heat(e.totalPercent);
+    const rows = SUBJECTS.map(s =>
+      '<div class="tip-row"><b>' + s.letter + '</b> - <span style="color:' + col + '">' + qsOf(e, s.key) + '</span></div>'
+    ).join('');
+    return '<div class="tip-box"><div class="tip-head"><span class="tip-id">' + esc(idText(e)) + '</span>' +
+           '<span style="color:' + col + '">' + totalQs(e) + ' ( ' + esc(e.maxMarks) + ' )</span></div>' + rows + '</div>';
+  }
+
+  // Right of the point first, then left, then below; above only as a last resort.
+  function placeTip(c, p){
+    const tip = c.tip, W = c.geom.W, H = c.geom.H;
+    const tw = tip.offsetWidth, th = tip.offsetHeight, g = 4;
+    let x, y;
+    if(p.x + g + tw <= W){ x = p.x + g; y = clamp(p.y - th / 2, 0, H - th); }
+    else if(p.x - g - tw >= 0){ x = p.x - g - tw; y = clamp(p.y - th / 2, 0, H - th); }
+    else if(p.y + g + th <= H){ x = clamp(p.x - tw / 2, 0, W - tw); y = p.y + g; }
+    else if(p.y - g - th >= 0){ x = clamp(p.x - tw / 2, 0, W - tw); y = p.y - g - th; }
+    else { x = clamp(p.x + g, 0, W - tw); y = clamp(p.y - th / 2, 0, H - th); }
+    tip.style.left = Math.round(x) + 'px';
+    tip.style.top = Math.round(y) + 'px';
+  }
+
+  function showTip(c, idx){
+    const p = c.geom.pts[idx];
+    if(!p) return;
+    const changed = c.hoverIdx !== idx;
+    c.hoverIdx = idx;
+    c.tip.innerHTML = tipHtml(p.e);
+    c.tip.classList.add('show');
+    placeTip(c, p);
+    if(changed) drawChart(c);
+  }
+  function hideTip(c){
+    c.tip.classList.remove('show');
+    if(c.hoverIdx !== null){ c.hoverIdx = null; drawChart(c); }
+  }
+  function scheduleHide(c){
+    clearTimeout(c.hideTimer);
+    c.hideTimer = setTimeout(() => hideTip(c), 140);
+  }
+  function nearestPoint(c, mx, my, radius){
+    let best = -1, bd = radius * radius;
+    c.geom.pts.forEach((p, i) => {
+      const d = (p.x - mx) * (p.x - mx) + (p.y - my) * (p.y - my);
+      if(d <= bd){ bd = d; best = i; }
     });
-    ctx.textAlign = 'left';
+    return best;
   }
 
-  function drawOverall(){
-    const pts = entries.map(e => ({ date: e.date, pct: e.totalPercent }));
-    document.getElementById('overallEmpty').style.display = pts.length ? 'none' : 'block';
-    drawLineChart('overallChart', pts, { height: 260 });
+  charts.forEach(c => {
+    c.canvas.addEventListener('pointermove', ev => {
+      if(ev.pointerType === 'touch') return;
+      const r = c.canvas.getBoundingClientRect();
+      const i = nearestPoint(c, ev.clientX - r.left, ev.clientY - r.top, 14);
+      if(i >= 0){
+        clearTimeout(c.hideTimer);
+        c.canvas.style.cursor = 'pointer';
+        if(c.hoverIdx !== i) showTip(c, i);
+      } else {
+        c.canvas.style.cursor = 'default';
+        if(c.hoverIdx !== null) scheduleHide(c);
+      }
+    });
+    c.canvas.addEventListener('pointerleave', () => { if(c.hoverIdx !== null) scheduleHide(c); });
+    c.canvas.addEventListener('click', ev => {
+      const r = c.canvas.getBoundingClientRect();
+      const i = nearestPoint(c, ev.clientX - r.left, ev.clientY - r.top, 18);
+      if(i < 0) return;                    // blank space -> handled by the document listener
+      ev._pt = true;
+      showTip(c, i);
+      select(c.geom.pts[i].e.date);
+    });
+    c.tip.addEventListener('mouseenter', () => clearTimeout(c.hideTimer));
+    c.tip.addEventListener('mouseleave', () => scheduleHide(c));
+    c.tip.addEventListener('click', () => {
+      if(c.hoverIdx !== null && c.geom.pts[c.hoverIdx]) select(c.geom.pts[c.hoverIdx].e.date);
+    });
+  });
+
+  // Click anywhere empty: glow + crosshair go away, the detail box stays.
+  document.addEventListener('click', ev => {
+    if(ev._pt) return;
+    if(ev.target.closest && ev.target.closest('.tip, .detail, .lb')) return;
+    if(selKey !== null){ selKey = null; redrawAll(); }
+  });
+  document.addEventListener('keydown', ev => {
+    if(ev.key !== 'Escape') return;
+    if(!document.getElementById('lb').hidden) closeReader(); else closeDetail();
+  });
+
+  function select(date){
+    selKey = date;
+    detailKey = date;
+    renderDetail();
+    redrawAll();
   }
 
-  function drawSubject(id, pts){
-    drawLineChart(id, pts, { height: 140 });
+  // ---- detail box ----
+  function renderDetail(){
+    const box = document.getElementById('detail');
+    const e = detailKey ? entries.find(x => x.date === detailKey) : null;
+    if(!e){ box.hidden = true; clearThumbs(); return; }
+    const col = heat(e.totalPercent);
+    document.getElementById('dId').textContent = idText(e);
+    document.getElementById('dDate').textContent = fmtDate(e.date);
+
+    let sumPlus = 0, sumMinus = 0, sumTotal = 0;
+    let html = '';
+    SUBJECTS.forEach(s => {
+      const plus = qsOf(e, s.key);
+      const total = subjMaxQ(e, s.key);
+      const minus = Math.max(0, total - plus);
+      sumPlus += plus; sumMinus += minus; sumTotal += total;
+      html += '<tr><td>' + s.letter + '</td><td style="color:' + col + '">' + plus + '</td><td style="color:' + col + '">' + minus + '</td><td style="color:' + col + '">' + total + '</td></tr>';
+    });
+    html += '<tr class="sum"><td>Test</td><td style="color:' + col + '">' + sumPlus + '</td><td style="color:' + col + '">' + sumMinus + '</td><td style="color:' + col + '">' + sumTotal + '</td></tr>';
+    document.getElementById('dBody').innerHTML = html;
+    box.hidden = false;
+    syncThumbs(e);
+  }
+  function closeDetail(){
+    detailKey = null;
+    renderDetail();
+  }
+  document.getElementById('detailClose').addEventListener('click', closeDetail);
+
+  // ---- PDF previews + full-screen reader (PDFs live in Google Drive) ----
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+  const pdfCache = new Map();   // url -> Promise<PDFDocument>, newest last
+  let thumbToken = 0;
+  let thumbSig = '';
+  let lbToken = 0;
+
+  function pdfUrl(e, kind, download){
+    return '/api/test-pdf/' + encodeURIComponent(e.date) + '?kind=' + kind +
+           '&v=' + (e.pdfV || 0) + (download ? '&download=1' : '');
+  }
+  function loadPdf(e, kind){
+    const url = pdfUrl(e, kind, false);
+    if(!pdfCache.has(url)){
+      const p = fetch(url)
+        .then(r => { if(!r.ok) throw new Error('load'); return r.arrayBuffer(); })
+        .then(buf => pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise);
+      p.catch(() => pdfCache.delete(url));
+      pdfCache.set(url, p);
+      if(pdfCache.size > 8){
+        const oldest = pdfCache.keys().next().value;
+        const old = pdfCache.get(oldest);
+        pdfCache.delete(oldest);
+        old.then(d => d.destroy()).catch(() => {});
+      }
+    }
+    return pdfCache.get(url);
   }
 
+  function clearThumbs(){
+    thumbSig = '';
+    thumbToken++;
+    const box = document.getElementById('thumbs');
+    box.innerHTML = '';
+    box.hidden = true;
+  }
+
+  // Redraws only when the shown test (or its PDFs) changed — not on every resize.
+  function syncThumbs(e){
+    const sig = e.date + '|' + (e.pdfV || 0) + '|' + !!e.hasQuestion + '|' + !!e.hasResult;
+    if(sig === thumbSig) return;
+    thumbSig = sig;
+    const token = ++thumbToken;
+    const box = document.getElementById('thumbs');
+    box.innerHTML = '';
+
+    const kinds = [];
+    if(e.hasQuestion) kinds.push('question');
+    if(e.hasResult) kinds.push('result');
+    if(!kinds.length){ box.hidden = true; return; }
+    box.hidden = false;
+
+    kinds.forEach(kind => {
+      const tile = document.createElement('button');
+      tile.type = 'button';
+      tile.className = 'thumb';
+      tile.setAttribute('aria-label', kind === 'question' ? 'Open question paper' : 'Open answer sheet');
+      tile.addEventListener('click', () => { if(!tile.classList.contains('failed')) openReader(e, kind); });
+      box.appendChild(tile);
+
+      loadPdf(e, kind)
+        .then(doc => doc.getPage(1))
+        .then(page => {
+          if(token !== thumbToken) return;
+          const base = page.getViewport({ scale: 1 });
+          const dpr = window.devicePixelRatio || 1;
+          const vp = page.getViewport({ scale: ((tile.clientWidth || 110) * dpr) / base.width });
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.round(vp.width);
+          canvas.height = Math.round(vp.height);
+          return page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise.then(() => {
+            if(token === thumbToken) tile.appendChild(canvas);
+          });
+        })
+        .catch(() => { if(token === thumbToken) tile.classList.add('failed'); });
+    });
+  }
+
+  async function openReader(e, kind){
+    const lb = document.getElementById('lb');
+    const scroll = document.getElementById('lbScroll');
+    const pagesEl = document.getElementById('lbPages');
+    const token = ++lbToken;
+    pagesEl.innerHTML = '<div class="lb-msg">Loading...</div>';
+    document.getElementById('lbDownload').href = pdfUrl(e, kind, true);
+    lb.hidden = false;
+    document.body.style.overflow = 'hidden';
+    scroll.scrollTop = 0;
+    document.getElementById('lbClose').focus();
+
+    try{
+      const doc = await loadPdf(e, kind);
+      if(token !== lbToken) return;
+      pagesEl.innerHTML = '';
+      const cssW = Math.max(200, Math.min(900, scroll.clientWidth - 28));
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      for(let i = 1; i <= doc.numPages; i++){
+        const page = await doc.getPage(i);
+        if(token !== lbToken) return;
+        const base = page.getViewport({ scale: 1 });
+        const vp = page.getViewport({ scale: (cssW * dpr) / base.width });
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(vp.width);
+        canvas.height = Math.round(vp.height);
+        pagesEl.appendChild(canvas);
+        await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+      }
+    } catch(err){
+      if(token === lbToken) pagesEl.innerHTML = '<div class="lb-msg">Could not load this PDF.</div>';
+    }
+  }
+  function closeReader(){
+    lbToken++;
+    document.getElementById('lb').hidden = true;
+    document.getElementById('lbPages').innerHTML = '';
+    document.body.style.overflow = '';
+  }
+  document.getElementById('lbClose').addEventListener('click', closeReader);
+  // click on the dimmed area beside the pages closes it too
+  document.getElementById('lbScroll').addEventListener('click', ev => {
+    if(ev.target.id === 'lbScroll' || ev.target.id === 'lbPages') closeReader();
+  });
+
+  // ---- history table ----
   function renderTable(){
     const tbody = document.getElementById('tableBody');
     const table = document.getElementById('scoreTable');
@@ -334,49 +799,96 @@
     table.style.display = 'table';
     empty.style.display = 'none';
 
-    [...entries].sort((a,b)=> b.date.localeCompare(a.date)).forEach(e=>{
+    [...entries].sort((a, b) => b.date.localeCompare(a.date)).forEach(e => {
+      const col = heat(e.totalPercent);
+      const cell = v => '<td style="color:' + col + '">' + v + '</td>';
       const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td>${e.date}</td>
-        <td>${e.physics.score}</td>
-        <td>${e.chemistry.score}</td>
-        <td>${e.biology.score}</td>
-        <td>${e.totalScore} / ${e.maxMarks}</td>
-        <td class="pct">${e.totalPercent.toFixed(1)}%</td>
-        <td><button class="del-btn" title="Delete">&times;</button></td>
-      `;
+      tr.innerHTML =
+        '<td>' + esc(idText(e)) + '</td>' +
+        '<td>' + esc(fmtDate(e.date)) + '</td>' +
+        cell(qsOf(e, 'physics')) + cell(qsOf(e, 'chemistry')) + cell(qsOf(e, 'biology')) +
+        cell(totalQs(e) + ' ( ' + esc(e.maxMarks) + ' )') +
+        cell(e.totalPercent.toFixed(1) + '%') +
+        '<td><button class="del-btn" title="Delete">&times;</button></td>';
       tr.querySelector('.del-btn').onclick = () => deleteEntry(e.date);
       tbody.appendChild(tr);
     });
   }
 
   async function deleteEntry(date){
-    if(!confirm(`Delete the ${date} entry?`)) return;
+    if(!confirm('Delete the ' + date + ' entry?')) return;
     try{
-      await fetch(`/api/scores/${date}`, { method: 'DELETE' });
+      await fetch('/api/scores/' + date, { method: 'DELETE' });
     } catch(e){}
     entries = entries.filter(e => e.date !== date);
     renderAll();
   }
 
-  document.getElementById('entryForm').addEventListener('submit', async (e)=>{
+  // ---- load + render ----
+  async function loadEntries(){
+    try{
+      const res = await fetch('/api/scores');
+      const data = await res.json();
+      entries = (data.entries || []).sort((a, b) => a.date.localeCompare(b.date));
+    } catch(e){
+      entries = [];
+    }
+    renderAll();
+  }
+
+  function renderAll(){
+    if(selKey && !entries.some(e => e.date === selKey)) selKey = null;
+    if(detailKey && !entries.some(e => e.date === detailKey)) detailKey = null;
+    charts.forEach(c => { clearTimeout(c.hideTimer); c.hoverIdx = null; c.tip.classList.remove('show'); });
+    document.getElementById('overallEmpty').style.display = entries.length ? 'none' : 'block';
+    redrawAll();
+    renderTable();
+    renderDetail();
+  }
+
+  // ---- form ----
+  document.getElementById('fTestId').addEventListener('input', ev => {
+    ev.target.value = ev.target.value.replace(/\D/g, '').slice(0, 3);
+  });
+
+  document.getElementById('entryForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const errEl = document.getElementById('formError');
     errEl.textContent = '';
 
+    const testId = document.getElementById('fTestId').value.trim();
     const date = document.getElementById('fDate').value;
     const maxMarks = document.getElementById('fMax').value;
-    const payload = {
-      date, maxMarks,
-      physics:   { correct: document.getElementById('pCorrect').value, wrong: document.getElementById('pWrong').value },
-      chemistry: { correct: document.getElementById('cCorrect').value, wrong: document.getElementById('cWrong').value },
-      biology:   { correct: document.getElementById('bCorrect').value, wrong: document.getElementById('bWrong').value },
-    };
+    const pM = document.getElementById('pMarks').value;
+    const cM = document.getElementById('cMarks').value;
+    const bM = document.getElementById('bMarks').value;
 
-    if(!date || !maxMarks){
-      errEl.textContent = 'Date and Max Marks are required.';
+    if(!/^\d{3}$/.test(testId)){ errEl.textContent = 'Test ID must be exactly 3 digits (e.g. 009).'; return; }
+    if(!date || !maxMarks){ errEl.textContent = 'Date and Max Marks are required.'; return; }
+    const marks = [pM, cM, bM].map(Number);
+    if(marks.some(m => !Number.isInteger(m) || m < 0 || m % 4 !== 0)){
+      errEl.textContent = 'Marks must be whole numbers in multiples of 4.';
       return;
     }
+    if(marks[0] + marks[1] + marks[2] > Number(maxMarks)){
+      errEl.textContent = 'Total marks cannot be more than Max Marks.';
+      return;
+    }
+
+    const qFile = document.getElementById('fQFile').files[0];
+    const rFile = document.getElementById('fRFile').files[0];
+    const badPdf = f => f && (!(f.type === 'application/pdf' || /\.pdf$/i.test(f.name)) || f.size === 0 || f.size > 20 * 1024 * 1024);
+    if(badPdf(qFile) || badPdf(rFile)){
+      errEl.textContent = 'Each file must be a PDF, up to 20 MB.';
+      return;
+    }
+
+    const payload = {
+      testId, date, maxMarks,
+      physics:   { marks: pM },
+      chemistry: { marks: cM },
+      biology:   { marks: bM },
+    };
 
     const btn = document.getElementById('submitBtn');
     btn.disabled = true;
@@ -392,11 +904,35 @@
       if(!res.ok || !data.success){
         throw new Error(data.error || 'Save failed');
       }
-      entries = entries.filter(en => en.date !== data.entry.date);
-      entries.push(data.entry);
-      entries.sort((a,b)=> a.date.localeCompare(b.date));
+      let saved = data.entry;
+
+      // PDFs go up after the entry exists; they are stored in Google Drive
+      const upErrors = [];
+      for(const job of [['question', qFile, 'question paper'], ['result', rFile, 'answer sheet']]){
+        if(!job[1]) continue;
+        btn.textContent = 'Uploading ' + job[2] + '...';
+        try{
+          const up = await fetch('/api/test-pdf/' + encodeURIComponent(date) + '?kind=' + job[0], {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/pdf' },
+            body: job[1]
+          });
+          const upData = await up.json();
+          if(!up.ok || !upData.success) throw new Error(upData.error || 'Upload failed');
+          saved = upData.entry;
+        } catch(upErr){
+          upErrors.push('the ' + job[2] + ' (' + upErr.message + ')');
+        }
+      }
+
+      entries = entries.filter(en => en.date !== saved.date);
+      entries.push(saved);
+      entries.sort((a, b) => a.date.localeCompare(b.date));
       renderAll();
       e.target.reset();
+      if(upErrors.length){
+        errEl.textContent = 'Entry saved, but this did not upload: ' + upErrors.join(' and ') + '. Log the same date again with the file to retry.';
+      }
     } catch(err){
       errEl.textContent = err.message;
     } finally {
