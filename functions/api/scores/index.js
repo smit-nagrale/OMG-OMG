@@ -1,13 +1,26 @@
 // functions/api/scores/index.js
 // Saturday Test Tracker — list + create entries.
 // Storage: KV namespace `SCORES`, one key per test date -> JSON entry.
-// Marking scheme (+4 correct, -1 wrong) is applied server-side so stored
+// You enter MARKS per subject (no negatives). Each question is worth 4 marks,
+// so questions = marks / 4. Everything is validated server-side so stored
 // scores can't be tampered with by editing the page.
+// (Older entries that have correct/wrong/score still load fine.)
 
-function calcSubject(correct, wrong) {
-  correct = Number(correct) || 0;
-  wrong = Number(wrong) || 0;
-  return correct * 4 - wrong * 1;
+import { publicEntry } from "../../utils/scoreEntry.js";
+
+const SUBJECTS = ["physics", "chemistry", "biology"];
+
+function toMarks(v) {
+  const n = Number(v);
+  // whole number, not negative, multiple of 4 (one question = 4 marks)
+  return Number.isInteger(n) && n >= 0 && n % 4 === 0 ? n : null;
+}
+
+function fail(status, error) {
+  return new Response(JSON.stringify({ success: false, error }), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
 }
 
 export async function onRequestGet(context) {
@@ -21,7 +34,11 @@ export async function onRequestGet(context) {
     })
   );
 
-  const clean = entries.filter(Boolean).sort((a, b) => a.date.localeCompare(b.date));
+  // Drive file IDs never leave the server (see utils/scoreEntry.js)
+  const clean = entries
+    .filter(Boolean)
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map(publicEntry);
 
   return new Response(JSON.stringify({ success: true, entries: clean }), {
     status: 200,
@@ -36,38 +53,60 @@ export async function onRequestPost(context) {
   try {
     body = await request.json();
   } catch {
-    return new Response(JSON.stringify({ success: false, error: "Invalid JSON" }), { status: 400 });
+    return fail(400, "Invalid JSON");
   }
+  if (!body || typeof body !== "object") return fail(400, "Invalid JSON");
 
-  const { date, maxMarks, physics, chemistry, biology } = body;
+  const { date, testId, maxMarks } = body;
 
-  if (!date || !maxMarks || !physics || !chemistry || !biology) {
-    return new Response(JSON.stringify({ success: false, error: "Missing fields" }), { status: 400 });
+  if (typeof date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return fail(400, "Invalid date");
+  }
+  if (typeof testId !== "string" || !/^\d{3}$/.test(testId)) {
+    return fail(400, "Test ID must be exactly 3 digits");
   }
 
   const max = Number(maxMarks);
-  if (!max || max <= 0) {
-    return new Response(JSON.stringify({ success: false, error: "Max Marks must be a positive number" }), { status: 400 });
+  if (!Number.isInteger(max) || max <= 0 || max > 100000) {
+    return fail(400, "Max Marks must be a positive whole number");
   }
 
-  const physicsScore = calcSubject(physics.correct, physics.wrong);
-  const chemistryScore = calcSubject(chemistry.correct, chemistry.wrong);
-  const biologyScore = calcSubject(biology.correct, biology.wrong);
-  const totalScore = physicsScore + chemistryScore + biologyScore;
+  const marks = SUBJECTS.map((k) => toMarks(body[k] && body[k].marks));
+  if (marks.some((m) => m === null)) {
+    return fail(400, "Marks must be whole numbers in multiples of 4");
+  }
 
+  const totalScore = marks[0] + marks[1] + marks[2];
+  if (totalScore > max) {
+    return fail(400, "Total marks cannot be more than Max Marks");
+  }
+
+  // `correct` = questions scored (marks / 4), `score` = marks
   const entry = {
-    date, // "YYYY-MM-DD", also the KV key and unique id
+    date, // "YYYY-MM-DD", also the KV key
+    testId, // "009"
     maxMarks: max,
-    physics: { correct: Number(physics.correct) || 0, wrong: Number(physics.wrong) || 0, score: physicsScore },
-    chemistry: { correct: Number(chemistry.correct) || 0, wrong: Number(chemistry.wrong) || 0, score: chemistryScore },
-    biology: { correct: Number(biology.correct) || 0, wrong: Number(biology.wrong) || 0, score: biologyScore },
+    physics: { correct: marks[0] / 4, score: marks[0] },
+    chemistry: { correct: marks[1] / 4, score: marks[1] },
+    biology: { correct: marks[2] / 4, score: marks[2] },
     totalScore,
     totalPercent: (totalScore / max) * 100,
   };
 
+  // re-saving a date keeps the PDFs already attached to it
+  const prevRaw = await env.SCORES.get(date);
+  if (prevRaw) {
+    try {
+      const prev = JSON.parse(prevRaw);
+      if (prev.questionFile) entry.questionFile = prev.questionFile;
+      if (prev.resultFile) entry.resultFile = prev.resultFile;
+      if (prev.pdfV) entry.pdfV = prev.pdfV;
+    } catch {}
+  }
+
   await env.SCORES.put(date, JSON.stringify(entry));
 
-  return new Response(JSON.stringify({ success: true, entry }), {
+  return new Response(JSON.stringify({ success: true, entry: publicEntry(entry) }), {
     status: 200,
     headers: { "Content-Type": "application/json" },
   });
